@@ -1,3 +1,4 @@
+const fetch=require('node-fetch');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -44,7 +45,6 @@ app.post('/api/cadastro',(req,res)=>{
 // TMDB
 app.get('/api/tmdb/:id',async(req,res)=>{
   try{
-    const fetch=(await import('node-fetch')).default;
     const{id}=req.params; const tipo=req.query.tipo||'movie';
     const TMDB=process.env.TMDB_KEY||'';
     const url=`https://api.themoviedb.org/3/${tipo}/${id}?api_key=${TMDB}&language=pt-BR`;
@@ -59,7 +59,6 @@ app.get('/api/tmdb/:id',async(req,res)=>{
 // SOUNDCLOUD SEARCH
 app.get('/api/soundcloud',async(req,res)=>{
   try{
-    const fetch=(await import('node-fetch')).default;
     const q=req.query.q||'';
     const url=`https://api.soundcloud.com/tracks?q=${q}&client_id=iZIs9mchVcX5lhVRyQNGAuEfWU60N3bM&limit=1&linked_partitioning=1`;
     const r=await fetch(url); const d=await r.json();
@@ -73,7 +72,6 @@ app.get('/api/soundcloud',async(req,res)=>{
 // YOUTUBE SEARCH (fallback)
 app.get('/api/youtube',async(req,res)=>{
   try{
-    const fetch=(await import('node-fetch')).default;
     const q=req.query.q||'';
     const YT=process.env.YOUTUBE_KEY||'';
     const url=`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&type=video&maxResults=1&key=${YT}`;
@@ -133,7 +131,6 @@ app.get('/api/maisJogados',async(req,res)=>{
   const db=lerDB();
   const lista=[...(db.resultados||[])].sort((a,b)=>(b.jogos||0)-(a.jogos||0)).slice(0,10);
   try{
-    const fetch=(await import('node-fetch')).default;
     for(const f of lista){
       if(!f.capa&&f.tmdbId){
         try{
