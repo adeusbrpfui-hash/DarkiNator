@@ -3,844 +3,374 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DarkiNator — O Gênio das Sombras</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<title>DarkiNator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
 :root{
-  --preto:#030508;--escuro:#0a0d14;--card:#0f1320;--borda:#1e2540;
-  --roxo:#7b2fff;--roxo2:#5a1fc0;--ouro:#f0c040;--prata:#b0b8cc;
-  --bronze:#cd7f32;--vermelho:#ff2d55;--verde:#00e676;
-  --texto:#e8eaf6;--texto2:#7880a0;
-  --brilho:0 0 30px rgba(123,47,255,.4);--brilho2:0 0 60px rgba(123,47,255,.15);
+  --bg:#07080f;
+  --card:#10131e;
+  --card2:#161b2e;
+  --borda:#252d45;
+  --borda2:#2e3855;
+  --roxo:#8b5cf6;
+  --roxo2:#6d28d9;
+  --roxo3:#4c1d95;
+  --ouro:#fbbf24;
+  --ouro2:#f59e0b;
+  --prata:#94a3b8;
+  --bronze:#b45309;
+  --verde:#10b981;
+  --vermelho:#ef4444;
+  --branco:#f1f5f9;
+  --cinza:#94a3b8;
+  --cinza2:#64748b;
 }
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:var(--preto);color:var(--texto);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;
-  background:radial-gradient(ellipse at 15% 50%,rgba(123,47,255,.07) 0%,transparent 55%),
-             radial-gradient(ellipse at 85% 20%,rgba(255,45,85,.05) 0%,transparent 45%),
-             radial-gradient(ellipse at 55% 85%,rgba(0,230,118,.03) 0%,transparent 45%);
-  pointer-events:none;z-index:0;animation:bgPulse 10s ease-in-out infinite alternate}
-@keyframes bgPulse{0%{opacity:.5}100%{opacity:1}}
-#particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-.particle{position:absolute;border-radius:50%;opacity:0;animation:floatUp linear infinite}
-@keyframes floatUp{0%{opacity:0;transform:translateY(100vh)}10%{opacity:.7}90%{opacity:.2}100%{opacity:0;transform:translateY(-5vh)}}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100vh}
+body{background:var(--bg);color:var(--branco);font-family:'Nunito',sans-serif;overflow-x:hidden}
+
+/* FUNDO */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(600px circle at 20% 30%,rgba(139,92,246,.06),transparent),
+    radial-gradient(400px circle at 80% 70%,rgba(251,191,36,.04),transparent);
+}
+#stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+.star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;opacity:0;animation:twinkle ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:0}50%{opacity:.6}}
+
 .hidden{display:none!important}
-.tela{display:none;position:relative;z-index:1;min-height:100vh;flex-direction:column}
+.tela{display:none;position:relative;z-index:1;min-height:100vh;flex-direction:column;align-items:center}
 .tela.ativa{display:flex}
 
-/* CAPTCHA */
-#telaCaptcha{align-items:center;justify-content:center;padding:20px}
-.captcha-box{background:var(--card);border:1px solid var(--borda);border-radius:20px;padding:40px 28px;width:100%;max-width:340px;text-align:center;box-shadow:var(--brilho2);animation:slideUp .6s ease}
-.captcha-logo{font-family:'Cinzel Decorative',serif;font-size:22px;color:var(--roxo);margin-bottom:4px;text-shadow:0 0 20px rgba(123,47,255,.4)}
-.captcha-sub{font-size:13px;color:var(--texto2);margin-bottom:24px;line-height:1.5}
-.captcha-code{background:rgba(123,47,255,.1);border:2px solid rgba(123,47,255,.5);border-radius:12px;padding:20px;
-  font-family:'Orbitron',monospace;font-size:26px;font-weight:900;color:var(--ouro);letter-spacing:8px;
-  margin-bottom:20px;text-shadow:0 0 20px rgba(240,192,64,.4)}
-.captcha-inp{width:100%;padding:13px;border-radius:8px;border:1px solid var(--borda);background:rgba(255,255,255,.04);
-  color:var(--texto);font-family:'Orbitron',monospace;font-size:18px;font-weight:700;text-align:center;
-  letter-spacing:4px;outline:none;transition:.2s;margin-bottom:14px;text-transform:uppercase}
-.captcha-inp:focus{border-color:var(--roxo);box-shadow:0 0 12px rgba(123,47,255,.2)}
-.captcha-btn{width:100%;padding:14px;border-radius:8px;border:none;
+/* ========== CAPTCHA ========== */
+#telaCaptcha{justify-content:center;padding:24px}
+.captcha-card{
+  background:var(--card);border:1px solid var(--borda);border-radius:24px;
+  padding:40px 28px;width:100%;max-width:360px;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);animation:aparecer .5s ease
+}
+@keyframes aparecer{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.cap-logo{font-family:'Cinzel Decorative',serif;font-size:22px;color:var(--roxo);margin-bottom:6px}
+.cap-sub{font-size:14px;color:var(--cinza);margin-bottom:28px;line-height:1.5}
+.cap-codigo{
+  background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(251,191,36,.08));
+  border:2px solid rgba(139,92,246,.4);border-radius:14px;
+  padding:22px;font-family:'Orbitron',monospace;font-size:28px;font-weight:900;
+  color:var(--ouro);letter-spacing:10px;margin-bottom:22px;
+  text-shadow:0 0 16px rgba(251,191,36,.3)
+}
+.cap-inp{
+  width:100%;padding:14px;border-radius:12px;border:2px solid var(--borda2);
+  background:rgba(255,255,255,.05);color:var(--branco);
+  font-family:'Orbitron',monospace;font-size:20px;font-weight:700;
+  text-align:center;letter-spacing:6px;outline:none;transition:.2s;
+  margin-bottom:16px;text-transform:uppercase
+}
+.cap-inp:focus{border-color:var(--roxo);background:rgba(139,92,246,.08)}
+.cap-btn{
+  width:100%;padding:15px;border-radius:12px;border:none;
   background:linear-gradient(135deg,var(--roxo),var(--roxo2));
-  color:#fff;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:2px;
-  cursor:pointer;box-shadow:var(--brilho);transition:.3s}
-.captcha-btn:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(123,47,255,.6)}
-.captcha-err{color:var(--vermelho);font-size:13px;margin-top:8px;min-height:18px}
+  color:#fff;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;
+  letter-spacing:3px;cursor:pointer;transition:.25s;
+  box-shadow:0 4px 20px rgba(139,92,246,.35)
+}
+.cap-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,.5)}
+.cap-err{color:var(--vermelho);font-size:13px;margin-top:10px;min-height:18px;font-weight:700}
 
-/* INTRO */
-#telaIntro{align-items:center;justify-content:center;padding:24px;text-align:center}
-.intro-logo-text{font-family:'Cinzel Decorative',serif;font-size:clamp(30px,9vw,60px);font-weight:900;
-  background:linear-gradient(135deg,#fff 0%,var(--roxo) 45%,var(--ouro) 100%);
+/* ========== INTRO ========== */
+#telaIntro{justify-content:center;padding:32px 24px;text-align:center;gap:0}
+.intro-titulo{
+  font-family:'Cinzel Decorative',serif;
+  font-size:clamp(34px,10vw,64px);font-weight:900;
+  background:linear-gradient(135deg,#c4b5fd 0%,var(--roxo) 40%,var(--ouro) 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  line-height:1.1;margin-bottom:6px;animation:logoIn 1s ease forwards}
-@keyframes logoIn{from{opacity:0;transform:translateY(-20px) scale(.9)}to{opacity:1;transform:none}}
-.intro-tagline{font-family:'Orbitron',monospace;font-size:11px;color:var(--texto2);letter-spacing:6px;text-transform:uppercase;margin-bottom:36px;animation:fadeIn 1.5s ease forwards}
-.genio-wrap{position:relative;width:150px;height:150px;margin:0 auto 32px}
-.genio-anel{position:absolute;inset:-8px;border-radius:50%;border:2px solid transparent;
-  background:linear-gradient(var(--preto),var(--preto)) padding-box,
-             linear-gradient(135deg,var(--roxo),var(--ouro),var(--roxo)) border-box;
-  animation:rodaSpin 4s linear infinite}
-.genio-anel2{position:absolute;inset:-18px;border-radius:50%;border:1px solid rgba(123,47,255,.25);animation:rodaSpin 10s linear infinite reverse}
-@keyframes rodaSpin{to{transform:rotate(360deg)}}
-.genio-img{width:150px;height:150px;border-radius:50%;object-fit:cover;border:3px solid var(--roxo);
-  box-shadow:var(--brilho);animation:genioPulse 3s ease-in-out infinite;display:block}
-@keyframes genioPulse{0%,100%{box-shadow:var(--brilho)}50%{box-shadow:0 0 70px rgba(123,47,255,.7)}}
-.intro-desc{max-width:320px;font-size:15px;line-height:1.7;color:var(--texto2);margin-bottom:36px;animation:fadeIn 2s ease forwards}
+  line-height:1.1;margin-bottom:8px;animation:entrar 1s ease
+}
+@keyframes entrar{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+.intro-tag{
+  font-family:'Orbitron',monospace;font-size:11px;color:var(--cinza2);
+  letter-spacing:5px;text-transform:uppercase;margin-bottom:40px;
+  animation:fadeIn 1.5s ease
+}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.btn-comecar{display:inline-block;padding:16px 44px;border-radius:4px;border:none;
+.genio-container{position:relative;width:160px;height:160px;margin:0 auto 36px}
+.anel{position:absolute;border-radius:50%;border:2px solid transparent;animation:girar linear infinite}
+.anel1{inset:-10px;border-width:2px;
+  background:linear-gradient(var(--bg),var(--bg)) padding-box,
+             linear-gradient(135deg,var(--roxo),var(--ouro),var(--roxo)) border-box;
+  animation-duration:4s}
+.anel2{inset:-22px;border-width:1px;
+  background:linear-gradient(var(--bg),var(--bg)) padding-box,
+             linear-gradient(135deg,rgba(139,92,246,.3),rgba(251,191,36,.3)) border-box;
+  animation-duration:8s;animation-direction:reverse}
+@keyframes girar{to{transform:rotate(360deg)}}
+.genio-foto{
+  width:160px;height:160px;border-radius:50%;object-fit:cover;display:block;
+  border:3px solid var(--roxo);
+  box-shadow:0 0 30px rgba(139,92,246,.4),0 0 60px rgba(139,92,246,.15);
+  animation:pulsarGenio 3s ease-in-out infinite
+}
+@keyframes pulsarGenio{0%,100%{box-shadow:0 0 30px rgba(139,92,246,.4)}50%{box-shadow:0 0 60px rgba(139,92,246,.7),0 0 100px rgba(139,92,246,.2)}}
+.intro-desc{
+  max-width:300px;font-size:15px;line-height:1.75;color:var(--cinza);
+  margin-bottom:40px;animation:fadeIn 2s ease
+}
+.btn-iniciar{
+  padding:17px 50px;border-radius:14px;border:none;
   background:linear-gradient(135deg,var(--roxo),var(--roxo2));color:#fff;
-  font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:3px;
-  cursor:pointer;box-shadow:var(--brilho);transition:.3s;animation:fadeIn 2.5s ease forwards;position:relative;overflow:hidden}
-.btn-comecar::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.15),transparent);opacity:0;transition:.3s}
-.btn-comecar:hover{transform:translateY(-3px);box-shadow:0 0 50px rgba(123,47,255,.7)}
-.btn-comecar:hover::after{opacity:1}
+  font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:3px;
+  cursor:pointer;box-shadow:0 4px 24px rgba(139,92,246,.4);transition:.3s;
+  animation:fadeIn 2.5s ease
+}
+.btn-iniciar:hover{transform:translateY(-3px);box-shadow:0 10px 40px rgba(139,92,246,.6)}
 
-/* LOGIN */
-#telaLogin{align-items:center;justify-content:center;padding:20px}
-.login-box{background:var(--card);border:1px solid var(--borda);border-radius:18px;padding:36px 24px;width:100%;max-width:360px;box-shadow:var(--brilho2);animation:slideUp .5s ease}
-@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
-.login-title{font-family:'Cinzel Decorative',serif;font-size:18px;color:var(--roxo);text-align:center;margin-bottom:4px}
-.login-sub{font-size:11px;color:var(--texto2);text-align:center;margin-bottom:24px;letter-spacing:2px;font-family:'Orbitron',monospace}
-.av-label{font-size:11px;color:var(--texto2);letter-spacing:1px;margin-bottom:8px;font-family:'Orbitron',monospace}
-.avatar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
-.av-opt{width:100%;aspect-ratio:1;border-radius:50%;object-fit:cover;border:3px solid transparent;cursor:pointer;transition:.25s;opacity:.55;background:var(--borda)}
-.av-opt.sel{border-color:var(--roxo);opacity:1;box-shadow:0 0 14px rgba(123,47,255,.5)}
-.l-inp{width:100%;padding:12px 15px;border-radius:8px;border:1px solid var(--borda);background:rgba(255,255,255,.04);
-  color:var(--texto);font-size:15px;font-family:'Rajdhani',sans-serif;font-weight:500;outline:none;transition:.2s;margin-bottom:10px}
-.l-inp:focus{border-color:var(--roxo);box-shadow:0 0 10px rgba(123,47,255,.15)}
-.l-inp::placeholder{color:var(--texto2)}
-.l-btn{width:100%;padding:13px;border-radius:8px;border:none;
+/* ========== LOGIN ========== */
+#telaLogin{justify-content:center;padding:24px}
+.login-card{
+  background:var(--card);border:1px solid var(--borda);border-radius:24px;
+  padding:36px 24px;width:100%;max-width:360px;
+  box-shadow:0 20px 60px rgba(0,0,0,.4);animation:aparecer .4s ease
+}
+.login-titulo{font-family:'Cinzel Decorative',serif;font-size:18px;color:var(--roxo);text-align:center;margin-bottom:4px}
+.login-sub{font-size:11px;color:var(--cinza2);text-align:center;letter-spacing:3px;font-family:'Orbitron',monospace;margin-bottom:24px}
+.av-label{font-size:11px;color:var(--cinza2);letter-spacing:2px;font-family:'Orbitron',monospace;margin-bottom:10px}
+.avatares-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.av{width:100%;aspect-ratio:1;border-radius:50%;object-fit:cover;border:3px solid transparent;cursor:pointer;transition:.2s;opacity:.5;background:var(--card2)}
+.av.sel{border-color:var(--roxo);opacity:1;box-shadow:0 0 12px rgba(139,92,246,.5)}
+.inp{
+  width:100%;padding:13px 15px;border-radius:12px;border:2px solid var(--borda2);
+  background:rgba(255,255,255,.04);color:var(--branco);
+  font-size:15px;font-family:'Nunito',sans-serif;font-weight:700;outline:none;transition:.2s;margin-bottom:10px
+}
+.inp::placeholder{color:var(--cinza2)}
+.inp:focus{border-color:var(--roxo);background:rgba(139,92,246,.06)}
+.btn-prim{
+  width:100%;padding:14px;border-radius:12px;border:none;
   background:linear-gradient(135deg,var(--roxo),var(--roxo2));color:#fff;
   font-family:'Orbitron',monospace;font-size:12px;font-weight:700;letter-spacing:2px;
-  cursor:pointer;box-shadow:var(--brilho);transition:.2s;margin-bottom:8px}
-.l-btn:hover{transform:translateY(-1px);box-shadow:0 0 36px rgba(123,47,255,.5)}
-.l-btn2{width:100%;padding:12px;border-radius:8px;border:1px solid var(--borda);background:transparent;
-  color:var(--texto2);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
-.l-btn2:hover{border-color:var(--roxo);color:var(--roxo)}
-.l-err{color:var(--vermelho);font-size:13px;text-align:center;min-height:18px;margin-top:4px}
+  cursor:pointer;box-shadow:0 4px 16px rgba(139,92,246,.3);transition:.2s;margin-bottom:8px
+}
+.btn-prim:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(139,92,246,.5)}
+.btn-sec{
+  width:100%;padding:13px;border-radius:12px;border:2px solid var(--borda2);background:transparent;
+  color:var(--cinza);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:.2s
+}
+.btn-sec:hover{border-color:var(--roxo);color:var(--roxo)}
+.login-err{color:var(--vermelho);font-size:13px;font-weight:700;text-align:center;min-height:18px;margin-top:6px}
 
-/* HEADER */
-#header{position:fixed;top:0;left:0;right:0;height:54px;background:rgba(10,13,20,.96);
-  backdrop-filter:blur(20px);border-bottom:1px solid var(--borda);
-  display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:500}
+/* ========== HEADER ========== */
+#header{
+  position:fixed;top:0;left:0;right:0;height:56px;
+  background:rgba(7,8,15,.92);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--borda);
+  display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:500
+}
 .h-logo{font-family:'Cinzel Decorative',serif;font-size:13px;
   background:linear-gradient(135deg,var(--roxo),var(--ouro));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.h-right{display:flex;align-items:center;gap:10px}
-.h-nick{font-size:12px;font-weight:600;color:var(--texto2);font-family:'Orbitron',monospace}
-.h-av{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--roxo);cursor:pointer;box-shadow:0 0 8px rgba(123,47,255,.35)}
+.h-direita{display:flex;align-items:center;gap:10px}
+.h-nick{font-size:12px;font-weight:700;color:var(--cinza);font-family:'Orbitron',monospace}
+.h-av{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--roxo);cursor:pointer;box-shadow:0 0 10px rgba(139,92,246,.3)}
 
-/* NAVBAR */
-#navbar{position:fixed;bottom:0;left:0;right:0;height:60px;background:rgba(10,13,20,.97);
-  backdrop-filter:blur(20px);border-top:1px solid var(--borda);
-  display:flex;justify-content:space-around;align-items:center;z-index:500}
-.nb{background:none;border:none;color:var(--texto2);cursor:pointer;display:flex;flex-direction:column;
-  align-items:center;gap:2px;font-size:8px;font-weight:700;letter-spacing:1px;padding:6px 8px;
+/* ========== NAVBAR ========== */
+#navbar{
+  position:fixed;bottom:0;left:0;right:0;height:62px;
+  background:rgba(7,8,15,.95);backdrop-filter:blur(24px);
+  border-top:1px solid var(--borda);
+  display:flex;justify-content:space-around;align-items:center;z-index:500
+}
+.nb{background:none;border:none;color:var(--cinza2);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:8px;font-weight:800;letter-spacing:1px;padding:6px 10px;
   font-family:'Orbitron',monospace;transition:.2s}
-.nb .ic{font-size:19px;transition:.2s}
+.nb .ic{font-size:20px}
 .nb.ativo{color:var(--roxo)}
-.nb.ativo .ic{filter:drop-shadow(0 0 5px var(--roxo))}
+.nb.ativo .ic{filter:drop-shadow(0 0 6px var(--roxo))}
 
-/* TELAS */
-.tela-main{padding:66px 14px 70px}
+/* ========== TELAS ========== */
+.pg{padding:68px 16px 74px;width:100%;align-items:stretch}
 
-/* JOGAR */
-#telaJogar{padding:66px 0 70px}
-.jogo-header{text-align:center;padding:18px 16px 14px;animation:fadeIn .4s ease}
-.jogo-header h2{font-family:'Cinzel Decorative',serif;font-size:18px;color:var(--roxo);margin-bottom:4px}
-.jogo-header p{font-size:13px;color:var(--texto2);line-height:1.5}
+/* ========== JOGO ========== */
+#telaJogar{padding:68px 0 74px}
+#jogarConteudo{width:100%;padding:0 16px}
 
-.prog-wrap{padding:0 16px;margin-bottom:18px}
-.prog-info{display:flex;justify-content:space-between;font-size:10px;font-family:'Orbitron',monospace;color:var(--texto2);margin-bottom:6px;letter-spacing:1px}
-.prog-bar{height:3px;background:var(--borda);border-radius:2px;overflow:hidden}
-.prog-fill{height:100%;background:linear-gradient(90deg,var(--roxo),var(--ouro));border-radius:2px;transition:width .6s ease;box-shadow:0 0 6px rgba(123,47,255,.4)}
+.jogo-topo{text-align:center;padding:16px 0 12px}
+.jogo-topo h2{font-family:'Cinzel Decorative',serif;font-size:19px;color:var(--branco);margin-bottom:4px}
+.jogo-topo p{font-size:13px;color:var(--cinza);line-height:1.5}
 
-.pergunta-box{margin:0 16px 16px;background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:20px;
-  position:relative;overflow:hidden;animation:slideUp .35s ease}
-.pergunta-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--roxo),var(--ouro))}
-.pergunta-num{font-family:'Orbitron',monospace;font-size:9px;color:var(--roxo);letter-spacing:2px;margin-bottom:8px}
-.pergunta-txt{font-size:17px;font-weight:600;color:var(--texto);line-height:1.5}
+.barra-prog{margin-bottom:16px}
+.barra-info{display:flex;justify-content:space-between;font-size:10px;font-family:'Orbitron',monospace;color:var(--cinza2);margin-bottom:6px;letter-spacing:1px}
+.barra{height:4px;background:var(--borda);border-radius:2px;overflow:hidden}
+.barra-fill{height:100%;background:linear-gradient(90deg,var(--roxo),var(--ouro));border-radius:2px;transition:width .5s ease;box-shadow:0 0 8px rgba(139,92,246,.4)}
 
-.respostas{padding:0 16px;display:flex;flex-direction:column;gap:9px}
-.resp-btn{padding:13px 18px;border-radius:10px;border:1px solid var(--borda);background:rgba(255,255,255,.02);
-  color:var(--texto);font-size:15px;font-weight:600;font-family:'Rajdhani',sans-serif;
-  cursor:pointer;text-align:left;transition:.25s;display:flex;align-items:center;gap:10px}
-.resp-btn:hover{border-color:var(--roxo);transform:translateX(3px);background:rgba(123,47,255,.08)}
-.resp-btn .resp-ico{font-size:18px;width:24px;text-align:center;flex-shrink:0}
-.resp-btn.r-sim:hover{border-color:var(--verde);background:rgba(0,230,118,.07)}
-.resp-btn.r-nao:hover{border-color:var(--vermelho);background:rgba(255,45,85,.07)}
-.resp-btn.r-talvez:hover{border-color:var(--ouro);background:rgba(240,192,64,.07)}
+.pergunta-card{
+  background:var(--card);border:1px solid var(--borda2);border-radius:16px;
+  padding:22px;margin-bottom:14px;position:relative;overflow:hidden;
+  animation:aparecer .3s ease
+}
+.pergunta-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--roxo),var(--ouro))}
+.perg-num{font-family:'Orbitron',monospace;font-size:9px;color:var(--roxo);letter-spacing:2px;margin-bottom:10px}
+.perg-txt{font-size:17px;font-weight:800;color:var(--branco);line-height:1.5}
 
-/* THINKING */
-.thinking-wrap{padding:20px 16px;text-align:center;animation:fadeIn .4s ease}
-.thinking-ico{font-size:48px;margin-bottom:12px;animation:thinkPulse 1s ease-in-out infinite}
-@keyframes thinkPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
-.thinking-txt{font-family:'Orbitron',monospace;font-size:11px;color:var(--texto2);letter-spacing:2px}
+.ops{display:flex;flex-direction:column;gap:8px}
+.op{
+  padding:13px 16px;border-radius:12px;border:2px solid var(--borda);
+  background:var(--card);color:var(--branco);
+  font-size:15px;font-weight:700;font-family:'Nunito',sans-serif;
+  cursor:pointer;text-align:left;transition:.2s;
+  display:flex;align-items:center;gap:10px
+}
+.op:hover{border-color:var(--roxo);background:rgba(139,92,246,.1);transform:translateX(4px)}
+.op .op-ico{font-size:17px;width:22px;text-align:center;flex-shrink:0}
 
-/* RESULTADO */
-.resultado-box{margin:0 16px;background:var(--card);border:1px solid var(--borda);border-radius:18px;overflow:hidden;animation:slideUp .5s ease;position:relative}
-.resultado-box::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(123,47,255,.12),transparent 55%);pointer-events:none;z-index:0}
-.res-capa{width:100%;height:210px;object-fit:cover;display:block;position:relative;z-index:1}
-.res-capa-ph{width:100%;height:210px;background:linear-gradient(135deg,#0f1320,#1e2540);display:flex;align-items:center;justify-content:center;font-size:56px;position:relative;z-index:1}
-.res-body{padding:18px;position:relative;z-index:1}
-.res-revelado{font-family:'Orbitron',monospace;font-size:9px;color:var(--roxo);letter-spacing:3px;margin-bottom:6px}
-.res-titulo{font-family:'Cinzel Decorative',serif;font-size:19px;color:var(--texto);margin-bottom:3px;line-height:1.3}
-.res-meta{font-size:12px;color:var(--texto2);margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.res-badge{background:rgba(123,47,255,.2);border:1px solid rgba(123,47,255,.3);border-radius:4px;padding:2px 7px;font-size:10px;font-family:'Orbitron',monospace;color:var(--roxo)}
-.res-sinopse{font-size:13px;color:var(--texto2);line-height:1.7;margin-bottom:16px}
+/* PENSANDO */
+.pensando{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:14px}
+.spinner{width:48px;height:48px;border-radius:50%;border:3px solid var(--borda2);border-top-color:var(--roxo);animation:girar .7s linear infinite}
+.pensando-txt{font-family:'Orbitron',monospace;font-size:10px;color:var(--cinza2);letter-spacing:2px;animation:piscar 1s ease-in-out infinite}
+@keyframes piscar{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ========== RESULTADO ========== */
+.resultado-card{
+  background:var(--card);border:1px solid var(--borda2);border-radius:20px;
+  overflow:hidden;animation:aparecer .5s ease;margin-bottom:16px
+}
+.res-capa{width:100%;height:220px;object-fit:cover;display:block}
+.res-capa-ph{width:100%;height:220px;background:linear-gradient(135deg,var(--card),var(--card2));display:flex;align-items:center;justify-content:center;font-size:60px}
+.res-corpo{padding:20px}
+.res-label{font-family:'Orbitron',monospace;font-size:9px;color:var(--roxo);letter-spacing:3px;margin-bottom:8px}
+.res-nome{font-family:'Cinzel Decorative',serif;font-size:20px;color:var(--branco);margin-bottom:6px;line-height:1.3}
+.res-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;align-items:center}
+.badge{
+  background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);
+  border-radius:6px;padding:3px 9px;font-size:10px;font-family:'Orbitron',monospace;
+  color:var(--roxo);font-weight:700;letter-spacing:1px
+}
+.res-sinopse{font-size:14px;color:var(--cinza);line-height:1.75;margin-bottom:18px}
 
 /* PLAYER MÚSICA */
-.musica-player{background:rgba(255,255,255,.03);border:1px solid var(--borda);border-radius:12px;overflow:hidden;margin-bottom:14px}
-.musica-header{display:flex;align-items:center;gap:10px;padding:12px 14px}
-.musica-play-btn{width:40px;height:40px;border-radius:50%;border:none;
+.player{
+  background:rgba(255,255,255,.04);border:1px solid var(--borda2);
+  border-radius:14px;overflow:hidden;margin-bottom:16px
+}
+.player-topo{display:flex;align-items:center;gap:12px;padding:14px}
+.play-btn{
+  width:42px;height:42px;border-radius:50%;border:none;flex-shrink:0;
   background:linear-gradient(135deg,var(--roxo),var(--roxo2));
-  color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 0 12px rgba(123,47,255,.4);transition:.2s}
-.musica-play-btn:hover{transform:scale(1.08)}
-.musica-info-txt{flex:1;min-width:0}
-.musica-nome{font-size:13px;font-weight:700;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.musica-fonte{font-size:10px;color:var(--texto2);font-family:'Orbitron',monospace;letter-spacing:1px}
-.musica-barra{height:2px;background:var(--borda);margin:0 14px 12px;border-radius:1px;overflow:hidden}
-.musica-prog{height:100%;background:linear-gradient(90deg,var(--roxo),var(--ouro));width:0%;transition:width .2s;border-radius:1px}
-.sc-embed{width:100%;border:none;display:none}
-.yt-embed{width:100%;height:0;border:none;display:none}
+  color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(139,92,246,.4);transition:.2s
+}
+.play-btn:hover{transform:scale(1.08)}
+.player-info{flex:1;min-width:0}
+.player-nome{font-size:13px;font-weight:800;color:var(--branco);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-fonte{font-size:10px;color:var(--cinza2);font-family:'Orbitron',monospace;letter-spacing:1px}
+.player-barra{height:3px;background:var(--borda);margin:0 14px 12px;border-radius:2px;overflow:hidden}
+.player-prog{height:100%;background:linear-gradient(90deg,var(--roxo),var(--ouro));width:0%;transition:.2s;border-radius:2px}
+iframe.sc-frame{width:100%;border:none;display:none}
+iframe.yt-frame{width:100%;height:0;border:none;display:none}
 
 /* MEDALHA */
-.medalha-wrap{display:flex;align-items:center;gap:12px;padding:14px;background:rgba(255,255,255,.02);border-radius:10px;margin-bottom:14px;border:1px solid var(--borda)}
-.medalha-ico{font-size:34px;animation:medalhaIn .6s ease .2s both}
-@keyframes medalhaIn{from{opacity:0;transform:scale(0) rotate(-15deg)}to{opacity:1;transform:none}}
-.medalha-nome{font-size:15px;font-weight:700}
-.medalha-pts{font-size:11px;color:var(--texto2);font-family:'Orbitron',monospace}
+.medalha{
+  display:flex;align-items:center;gap:14px;padding:16px;
+  background:rgba(255,255,255,.03);border:1px solid var(--borda2);border-radius:12px;margin-bottom:16px
+}
+.med-ico{font-size:36px;animation:medalhaEntrar .6s ease .2s both}
+@keyframes medalhaEntrar{from{opacity:0;transform:scale(0)}to{opacity:1;transform:scale(1)}}
+.med-label{font-family:'Orbitron',monospace;font-size:9px;color:var(--cinza2);letter-spacing:2px;margin-bottom:4px}
+.med-nome{font-size:16px;font-weight:900}
+.med-pts{font-size:11px;color:var(--cinza2);font-family:'Orbitron',monospace;margin-top:2px}
 
-.res-btns{display:flex;gap:8px;margin-bottom:12px}
-.btn-acertou{flex:1;padding:12px;border-radius:9px;border:none;
-  background:linear-gradient(135deg,#00954a,var(--verde));color:#000;
-  font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:.2s}
-.btn-errou{flex:1;padding:12px;border-radius:9px;border:1px solid var(--vermelho);background:transparent;
-  color:var(--vermelho);font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:.2s}
-.btn-novojogo{width:100%;padding:13px;border-radius:9px;border:none;
+.btns-resultado{display:flex;gap:8px;margin-bottom:12px}
+.btn-sim{
+  flex:1;padding:13px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,#059669,var(--verde));
+  color:#fff;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:.2s
+}
+.btn-nao{
+  flex:1;padding:13px;border-radius:12px;border:2px solid var(--vermelho);background:transparent;
+  color:var(--vermelho);font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:.2s
+}
+.btn-nao:hover{background:rgba(239,68,68,.1)}
+.btn-novojogo{
+  width:100%;padding:14px;border-radius:12px;border:none;
   background:linear-gradient(135deg,var(--roxo),var(--roxo2));color:#fff;
   font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:2px;
-  cursor:pointer;box-shadow:var(--brilho);transition:.2s;margin-bottom:16px}
+  cursor:pointer;box-shadow:0 4px 16px rgba(139,92,246,.3);transition:.2s;margin-bottom:18px
+}
 .btn-novojogo:hover{transform:translateY(-1px)}
 
 /* COMENTÁRIOS */
-.coms-sec{border-top:1px solid var(--borda);padding-top:14px}
-.coms-titulo{font-size:11px;color:var(--texto2);letter-spacing:2px;font-family:'Orbitron',monospace;margin-bottom:12px}
-.coms-lista{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;max-height:180px;overflow-y:auto}
-.com-item{display:flex;gap:8px}
-.com-av{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--borda);flex-shrink:0;border:1px solid var(--borda)}
-.com-bubble{background:rgba(255,255,255,.03);border:1px solid var(--borda);border-radius:9px;padding:7px 11px;flex:1}
-.com-user{font-size:10px;font-weight:700;color:var(--roxo);margin-bottom:2px;font-family:'Orbitron',monospace}
-.com-txt{font-size:13px;color:var(--texto);line-height:1.4}
-.com-row{display:flex;gap:8px}
-.com-inp{flex:1;padding:9px 12px;border-radius:8px;border:1px solid var(--borda);background:rgba(255,255,255,.04);
-  color:var(--texto);font-size:13px;font-family:'Rajdhani',sans-serif;outline:none;transition:.2s}
+.coms{border-top:1px solid var(--borda);padding-top:16px}
+.coms-titulo{font-family:'Orbitron',monospace;font-size:10px;color:var(--cinza2);letter-spacing:2px;margin-bottom:12px}
+.coms-lista{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:190px;overflow-y:auto}
+.com{display:flex;gap:8px}
+.com-av{width:30px;height:30px;border-radius:50%;object-fit:cover;background:var(--card2);flex-shrink:0;border:2px solid var(--borda)}
+.com-balao{background:var(--card2);border:1px solid var(--borda);border-radius:10px;padding:8px 12px;flex:1}
+.com-nick{font-size:10px;font-weight:800;color:var(--roxo);margin-bottom:3px;font-family:'Orbitron',monospace}
+.com-texto{font-size:13px;color:var(--branco);line-height:1.4}
+.com-linha{display:flex;gap:8px}
+.com-inp{
+  flex:1;padding:10px 13px;border-radius:10px;border:2px solid var(--borda2);
+  background:rgba(255,255,255,.04);color:var(--branco);
+  font-size:13px;font-family:'Nunito',sans-serif;font-weight:700;outline:none;transition:.2s
+}
+.com-inp::placeholder{color:var(--cinza2)}
 .com-inp:focus{border-color:var(--roxo)}
-.com-inp::placeholder{color:var(--texto2)}
-.com-send{padding:9px 14px;border-radius:8px;border:none;background:var(--roxo);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
-.com-send:hover{box-shadow:0 0 14px rgba(123,47,255,.5)}
+.com-enviar{padding:10px 16px;border-radius:10px;border:none;background:var(--roxo);color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:.2s}
+.com-enviar:hover{background:var(--roxo2)}
 
-/* MAIS JOGADOS */
-#telaMaisJogados{padding:66px 14px 70px}
-.sec-title{font-family:'Cinzel Decorative',serif;font-size:18px;
-  background:linear-gradient(135deg,var(--roxo),var(--ouro));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  text-align:center;margin-bottom:4px;padding-top:8px}
-.sec-sub{font-size:10px;color:var(--texto2);text-align:center;letter-spacing:3px;font-family:'Orbitron',monospace;margin-bottom:20px}
-.mj-card{background:var(--card);border:1px solid var(--borda);border-radius:14px;overflow:hidden;margin-bottom:12px;transition:.25s}
-.mj-card:hover{border-color:rgba(123,47,255,.35);box-shadow:var(--brilho2)}
-.mj-capa{width:100%;height:150px;object-fit:cover;display:block}
-.mj-capa-ph{width:100%;height:150px;background:linear-gradient(135deg,var(--card),var(--borda));display:flex;align-items:center;justify-content:center;font-size:44px}
-.mj-body{padding:12px}
-.mj-nome{font-family:'Cinzel Decorative',serif;font-size:14px;color:var(--texto);margin-bottom:5px}
-.mj-stats{display:flex;gap:14px;margin-bottom:10px}
-.mj-stat{font-size:11px;color:var(--texto2);font-family:'Orbitron',monospace}
-.mj-stat b{color:var(--roxo)}
-.mj-player-mini{display:flex;align-items:center;gap:8px;background:rgba(123,47,255,.07);border-radius:8px;padding:9px 10px}
-.mj-play{width:32px;height:32px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--roxo),var(--roxo2));
-  color:#fff;font-size:13px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.2s}
-.mj-play:hover{transform:scale(1.1)}
-.mj-music-nome{font-size:11px;font-weight:700;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+/* ========== TOP FILMES ========== */
+.sec-titulo{font-family:'Cinzel Decorative',serif;font-size:18px;color:var(--branco);margin-bottom:4px;padding-top:8px}
+.sec-sub{font-size:10px;color:var(--cinza2);letter-spacing:3px;font-family:'Orbitron',monospace;margin-bottom:20px}
+.top-card{
+  background:var(--card);border:1px solid var(--borda);border-radius:16px;
+  overflow:hidden;margin-bottom:12px;transition:.2s
+}
+.top-card:hover{border-color:var(--borda2);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.top-capa{width:100%;height:160px;object-fit:cover;display:block}
+.top-capa-ph{width:100%;height:160px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:44px}
+.top-corpo{padding:14px}
+.top-nome{font-family:'Cinzel Decorative',serif;font-size:15px;color:var(--branco);margin-bottom:8px}
+.top-stats{display:flex;gap:16px;margin-bottom:10px}
+.top-stat{font-size:11px;color:var(--cinza);font-family:'Orbitron',monospace}
+.top-stat b{color:var(--roxo)}
+.top-music{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(139,92,246,.08);border-radius:10px;padding:10px 12px
+}
+.top-play{
+  width:34px;height:34px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,var(--roxo),var(--roxo2));
+  color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0
+}
+.top-play:hover{transform:scale(1.1)}
+.top-music-nome{font-size:11px;font-weight:700;color:var(--branco);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
 
-/* RANKING */
-#telaRanking{padding:66px 14px 70px}
-.rank-item{display:flex;align-items:center;gap:10px;padding:13px;background:var(--card);border:1px solid var(--borda);border-radius:11px;margin-bottom:8px;transition:.2s}
-.rank-item:hover{border-color:rgba(123,47,255,.3);transform:translateX(2px)}
-.rank-pos{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;width:28px;text-align:center}
-.rank-pos.p1{color:var(--ouro);text-shadow:0 0 10px rgba(240,192,64,.5)}
+/* ========== RANKING ========== */
+.rank-item{
+  display:flex;align-items:center;gap:12px;padding:14px;
+  background:var(--card);border:1px solid var(--borda);border-radius:14px;margin-bottom:8px;transition:.2s
+}
+.rank-item:hover{border-color:var(--borda2);transform:translateX(2px)}
+.rank-pos{font-family:'Orbitron',monospace;font-size:14px;font-weight:900;width:30px;text-align:center}
+.rank-pos.p1{color:var(--ouro);text-shadow:0 0 10px rgba(251,191,36,.4)}
 .rank-pos.p2{color:var(--prata)}
 .rank-pos.p3{color:var(--bronze)}
-.rank-av{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--borda);flex-shrink:0}
+.rank-av{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--borda);flex-shrink:0}
 .rank-info{flex:1}
-.rank-nick{font-size:14px;font-weight:700;color:var(--texto)}
-.rank-pts{font-size:10px;color:var(--texto2);font-family:'Orbitron',monospace}
-.rank-medal{font-size:18px}
+.rank-nick{font-size:15px;font-weight:800;color:var(--branco)}
+.rank-pts{font-size:10px;color:var(--cinza2);font-family:'Orbitron',monospace;margin-top:2px}
+.rank-emoji{font-size:18px}
 
-/* PERFIL */
-#telaPerfil{padding:66px 14px 70px}
-.perfil-capa-bg{width:calc(100% + 28px);height:90px;margin:-66px -14px 0;
-  background:linear-gradient(135deg,var(--roxo2),#0a0d14,#180535);padding-top:66px}
-.perfil-av{width:76px;height:76px;border-radius:50%;object-fit:cover;border:3px solid var(--roxo);
-  box-shadow:0 0 18px rgba(123,47,255,.4);margin:-38  text-shadow:0 0 20px rgba(240,192,64,.5)}
-.captcha-inp{width:100%;padding:13px;border-radius:8px;border:1px solid var(--borda);
-  background:rgba(255,255,255,.04);color:var(--texto);font-family:'Orbitron',monospace;
-  font-size:18px;font-weight:700;text-align:center;letter-spacing:4px;outline:none;
-  transition:.2s;margin-bottom:14px;text-transform:uppercase}
-.captcha-inp:focus{border-color:var(--roxo)}
-.captcha-btn{width:100%;padding:14px;border-radius:8px;border:none;
-  background:linear-gradient(135deg,var(--roxo),var(--roxo2));
-  color:#fff;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;
-  letter-spacing:2px;cursor:pointer;box-shadow:var(--brilho);transition:.2s}
-.captcha-btn:hover{transform:translateY(-1px)}
-.captcha-err{color:var(--vermelho);font-size:13px;margin-top:8px;min-height:18px}
-</style>
-</head>
-<body>
-
-<div id="particles"></div>
-
-<!-- NOTIFICAÇÃO -->
-<div class="notif" id="notif"></div>
-
-<!-- CAPTCHA -->
-<div class="tela ativa" id="telaCaptcha">
-  <div class="captcha-box">
-    <div class="captcha-logo">🔮 DarkiNator</div>
-    <div class="captcha-sub">Digite o código abaixo para entrar nas sombras</div>
-    <div class="captcha-code" id="captchaDisplay">------</div>
-    <input class="captcha-inp" type="text" id="captchaInp" placeholder="CÓDIGO" maxlength="6" autocomplete="off">
-    <button class="captcha-btn" onclick="verificarCaptcha()">ENTRAR ›</button>
-    <div class="captcha-err" id="captchaErr"></div>
-  </div>
-</div>
-
-<!-- INTRO -->
-<div class="tela" id="telaIntro">
-  <div class="intro-logo">
-    <div class="intro-logo-text">DarkiNator</div>
-    <div class="intro-sub">O Gênio das Sombras</div>
-    <div class="genio-wrap">
-      <div class="genio-anel"></div>
-      <div class="genio-anel2"></div>
-      <img class="genio-img" src="https://i.imgur.com/8bV9ZuV.png" onerror="this.src='https://ui-avatars.com/api/?name=D&background=7b2fff&color=fff&size=160'" alt="Gênio">
-    </div>
-    <div class="intro-desc">Pensei em um filme ou série? O DarkiNator descobre com apenas algumas perguntas. Quanto mais raro, maior a recompensa.</div>
-    <button class="btn-comecar" onclick="irParaLogin()">COMEÇAR ›</button>
-  </div>
-</div>
-
-<!-- LOGIN -->
-<div class="tela" id="telaLogin">
-  <div class="login-box">
-    <div class="login-title">🔮 DarkiNator</div>
-    <div class="login-sub">ENTRE NAS SOMBRAS</div>
-    <div style="font-size:12px;color:var(--texto2);margin-bottom:8px;letter-spacing:1px">ESCOLHA SEU AVATAR</div>
-    <div class="avatar-grid" id="avatarGrid"></div>
-    <input class="l-inp" type="text" id="inputNick" placeholder="Seu apelido..." maxlength="20">
-    <button class="l-btn" onclick="entrar()">ENTRAR</button>
-    <button class="l-btn2" onclick="mostrarCadastro()">Criar conta</button>
-    <input class="l-inp" type="password" id="inputSenha" placeholder="Senha (4 dígitos)" maxlength="4" style="display:none;margin-top:8px">
-    <div class="l-err" id="erroLogin"></div>
-  </div>
-</div>
-
-<!-- HEADER -->
-<div id="header" class="hidden">
-  <div class="h-logo">🔮 DarkiNator</div>
-  <div class="h-right">
-    <span class="h-nick" id="headerNick"></span>
-    <img class="h-av" id="headerAv" src="" onclick="irTela('telaPerfil')">
-  </div>
-</div>
-
-<!-- NAVBAR -->
-<div id="navbar" class="hidden">
-  <button class="nb ativo" id="btnJogar" onclick="irTela('telaJogar')"><span class="ic">🔮</span>JOGAR</button>
-  <button class="nb" id="btnMaisJogados" onclick="irTela('telaMaisJogados')"><span class="ic">🎬</span>TOP</button>
-  <button class="nb" id="btnRanking" onclick="irTela('telaRanking')"><span class="ic">🏆</span>RANK</button>
-  <button class="nb" id="btnPerfil" onclick="irTela('telaPerfil')"><span class="ic">👤</span>PERFIL</button>
-</div>
-
-<!-- JOGAR -->
-<div class="tela tela-main" id="telaJogar">
-  <div style="padding:0 16px" id="jogarConteudo"></div>
-</div>
-
-<!-- MAIS JOGADOS -->
-<div class="tela tela-main" id="telaMaisJogados">
-  <div class="mj-title">🎬 Mais Jogados</div>
-  <div class="mj-sub">FILMES & SÉRIES TOP</div>
-  <div id="maisJogadosLista"></div>
-</div>
-
-<!-- RANKING -->
-<div class="tela tela-main" id="telaRanking">
-  <div class="rank-title">🏆 Ranking</div>
-  <div class="rank-sub">MESTRES DAS SOMBRAS</div>
-  <div id="rankingLista"></div>
-</div>
-
-<!-- PERFIL -->
-<div class="tela tela-main" id="telaPerfil">
-  <div class="perfil-capa"></div>
-  <img class="perfil-av" id="perfilAv" src="">
-  <div class="perfil-nick" id="perfilNick"></div>
-  <div class="perfil-stats">
-    <div class="perfil-stat"><span class="perfil-stat-n" id="perfilPts">0</span><span class="perfil-stat-l">PONTOS</span></div>
-    <div class="perfil-stat"><span class="perfil-stat-n" id="perfilJogos">0</span><span class="perfil-stat-l">JOGOS</span></div>
-    <div class="perfil-stat"><span class="perfil-stat-n" id="perfilAcertos">0</span><span class="perfil-stat-l">ACERTOS</span></div>
-  </div>
-  <div class="perfil-medalhas">
-    <div class="perfil-med-title">MEDALHAS</div>
-    <div class="perfil-med-lista" id="perfilMedalhas"></div>
-  </div>
-  <button class="btn-sair" onclick="sair()">SAIR</button>
-</div>
-
-<script>
-// ===== CONFIGURAÇÃO =====
-const TMDB_KEY = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9'; // placeholder - usar chave real
-const AVATARES = [
-  'https://api.dicebear.com/7.x/personas/svg?seed=shadow&backgroundColor=0a0d14',
-  'https://api.dicebear.com/7.x/personas/svg?seed=ghost&backgroundColor=0a0d14',
-  'https://api.dicebear.com/7.x/personas/svg?seed=phantom&backgroundColor=0a0d14',
-  'https://api.dicebear.com/7.x/personas/svg?seed=dark&backgroundColor=0a0d14',
-  'https://api.dicebear.com/7.x/personas/svg?seed=mystic&backgroundColor=0a0d14',
-  'https://api.dicebear.com/7.x/personas/svg?seed=raven&backgroundColor=0a0d14',
-  'https://api.dicebear.com/7.x/personas/svg?seed=void&backgroundColor=0a0d14',
-  'https://api.dicebear.com/7.x/personas/svg?seed=night&backgroundColor=0a0d14',
-];
-
-// ===== ESTADO =====
-let userLogado = null;
-let captchaResp = null;
-let avatarSel = 0;
-let jogoAtual = null;
-let audioAtual = null;
-
-// ===== PARTÍCULAS =====
-function criarParticulas(){
-  const cont = document.getElementById('particles');
-  for(let i=0;i<20;i++){
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.left = Math.random()*100+'%';
-    p.style.animationDuration = (8+Math.random()*12)+'s';
-    p.style.animationDelay = (Math.random()*10)+'s';
-    p.style.width = p.style.height = (1+Math.random()*2)+'px';
-    const colors = ['var(--roxo)','var(--ouro)','var(--vermelho)','#fff'];
-    p.style.background = colors[Math.floor(Math.random()*colors.length)];
-    cont.appendChild(p);
-  }
+/* ========== PERFIL ========== */
+.perfil-topo{
+  width:calc(100% + 32px);height:88px;margin:-68px -16px 0;
+  background:linear-gradient(135deg,rgba(109,40,217,.4),rgba(7,8,15,0));padding-top:68px
 }
-criarParticulas();
-
-// ===== UTILS =====
-function mostrarNotif(txt, cor='var(--roxo)'){
-  const n = document.getElementById('notif');
-  n.textContent = txt;
-  n.style.borderColor = cor;
-  n.classList.add('show');
-  setTimeout(()=>n.classList.remove('show'), 2800);
-}
-
-function av(url){ return url || AVATARES[0]; }
-
-function salvarSessao(u){ localStorage.setItem('darki_user', JSON.stringify(u)); }
-function carregarSessao(){ try{ const u=localStorage.getItem('darki_user'); return u?JSON.parse(u):null; }catch{ return null; } }
-function limparSessao(){ localStorage.removeItem('darki_user'); }
-
-// ===== CAPTCHA =====
-function gerarCodigo(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let c=''; for(let i=0;i<6;i++) c+=chars[Math.floor(Math.random()*chars.length)]; return c;
-}
-function carregarCaptcha(){
-  captchaResp = gerarCodigo();
-  document.getElementById('captchaDisplay').textContent = captchaResp;
-  document.getElementById('captchaInp').value = '';
-  document.getElementById('captchaErr').textContent = '';
-}
-function verificarCaptcha(){
-  const val = document.getElementById('captchaInp').value.trim().toUpperCase();
-  if(val === captchaResp){
-    irTela('telaIntro');
-    const s = carregarSessao();
-    if(s){ userLogado=s; iniciar(); }
-  } else {
-    document.getElementById('captchaErr').textContent = 'Código incorreto! Tente novamente.';
-    carregarCaptcha();
-  }
-}
-document.getElementById('captchaInp').addEventListener('keydown', e=>{ if(e.key==='Enter') verificarCaptcha(); });
-
-// ===== INTRO =====
-function irParaLogin(){
-  irTela('telaLogin');
-  renderAvatares();
-}
-
-function renderAvatares(){
-  const g = document.getElementById('avatarGrid');
-  g.innerHTML = AVATARES.map((url,i)=>`
-    <img class="av-opt${i===avatarSel?' sel':''}" src="${url}" onclick="selAvatar(${i})" onerror="this.src='https://ui-avatars.com/api/?name=D&background=7b2fff&color=fff&size=64'">
-  `).join('');
-}
-function selAvatar(i){
-  avatarSel = i;
-  document.querySelectorAll('.av-opt').forEach((el,j)=>el.classList.toggle('sel',j===i));
-}
-
-// ===== LOGIN =====
-function mostrarCadastro(){
-  document.getElementById('inputSenha').style.display='block';
-  document.querySelector('.l-btn').textContent='CRIAR CONTA';
-  document.querySelector('.l-btn').onclick = cadastrar;
-  document.querySelector('.l-btn2').style.display='none';
-}
-
-async function entrar(){
-  const nick = document.getElementById('inputNick').value.trim();
-  if(!nick){ document.getElementById('erroLogin').textContent='Digite seu apelido!'; return; }
-  const r = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:nick})});
-  const d = await r.json();
-  if(d.erro){ document.getElementById('erroLogin').textContent=d.erro; return; }
-  userLogado = {...d.usuario, avatarIdx: avatarSel};
-  salvarSessao(userLogado);
-  iniciar();
-}
-
-async function cadastrar(){
-  const nick = document.getElementById('inputNick').value.trim();
-  const senha = document.getElementById('inputSenha').value.trim();
-  if(!nick){ document.getElementById('erroLogin').textContent='Digite seu apelido!'; return; }
-  if(senha.length!==4){ document.getElementById('erroLogin').textContent='Senha deve ter 4 dígitos!'; return; }
-  const r = await fetch('/api/cadastro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:nick,senha,avatarIdx:avatarSel})});
-  const d = await r.json();
-  if(d.erro){ document.getElementById('erroLogin').textContent=d.erro; return; }
-  userLogado = d.usuario;
-  salvarSessao(userLogado);
-  iniciar();
-}
-
-function iniciar(){
-  document.getElementById('telaLogin').classList.remove('ativa');
-  document.getElementById('telaIntro').classList.remove('ativa');
-  document.getElementById('header').classList.remove('hidden');
-  document.getElementById('navbar').classList.remove('hidden');
-  document.getElementById('headerNick').textContent = userLogado.username;
-  document.getElementById('headerAv').src = AVATARES[userLogado.avatarIdx||0];
-  irTela('telaJogar');
-}
-
-function sair(){
-  limparSessao();
-  userLogado = null;
-  document.getElementById('header').classList.add('hidden');
-  document.getElementById('navbar').classList.add('hidden');
-  irTela('telaIntro');
-}
-
-// ===== NAVEGAÇÃO =====
-function irTela(id){
-  document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));
-  document.getElementById(id).classList.add('ativa');
-  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('ativo'));
-  const m={telaJogar:'btnJogar',telaMaisJogados:'btnMaisJogados',telaRanking:'btnRanking',telaPerfil:'btnPerfil'};
-  if(m[id]) document.getElementById(m[id]).classList.add('ativo');
-  if(id==='telaJogar') iniciarJogo();
-  if(id==='telaRanking') carregarRanking();
-  if(id==='telaMaisJogados') carregarMaisJogados();
-  if(id==='telaPerfil') carregarPerfil();
-}
-
-// ===== SISTEMA DE PERGUNTAS =====
-const PERGUNTAS = [
-  { txt:'É um filme (não uma série)?', chave:'ehFilme' },
-  { txt:'Foi lançado depois de 2010?', chave:'recente' },
-  { txt:'É de ação ou aventura?', chave:'acao' },
-  { txt:'Tem elementos de fantasia ou ficção científica?', chave:'fantasia' },
-  { txt:'É americano (Hollywood)?', chave:'americano' },
-  { txt:'O protagonista é humano comum (sem poderes)?', chave:'humanoComum' },
-  { txt:'A história se passa no presente?', chave:'presente' },
-  { txt:'Tem romance como tema principal?', chave:'romance' },
-  { txt:'É voltado para adultos (18+)?', chave:'adulto' },
-  { txt:'Tem mais de 2 horas de duração?', chave:'longo' },
-  { txt:'Foi indicado ou ganhou Oscar?', chave:'oscar' },
-  { txt:'É baseado em livro, quadrinho ou jogo?', chave:'adaptacao' },
-  { txt:'Tem sequência ou faz parte de uma franquia?', chave:'franquia' },
-  { txt:'A história envolve vilões icônicos?', chave:'vilao' },
-  { txt:'O final é considerado triste ou ambíguo?', chave:'finalTriste' },
-];
-
-// Banco de filmes/séries com tags para o sistema de decisão
-const BANCO = [
-  {tmdb:299536,nome:'Vingadores: Guerra Infinita',tags:{ehFilme:true,recente:true,acao:true,fantasia:true,americano:true,humanoComum:false,presente:true,romance:false,adulto:false,longo:true,oscar:false,adaptacao:true,franquia:true,vilao:true,finalTriste:true},raridade:'raro'},
-  {tmdb:299534,nome:'Vingadores: Ultimato',tags:{ehFilme:true,recente:true,acao:true,fantasia:true,americano:true,humanoComum:false,presente:true,romance:false,adulto:false,longo:true,oscar:false,adaptacao:true,franquia:true,vilao:true,finalTriste:false},raridade:'comum'},
-  {tmdb:19404,nome:'Dilwale Dulhania Le Jayenge',tags:{ehFilme:true,recente:false,acao:false,fantasia:false,americano:false,humanoComum:true,presente:true,romance:true,adulto:false,longo:true,oscar:false,adaptacao:false,franquia:false,vilao:false,finalTriste:false},raridade:'raro'},
-  {tmdb:278,nome:'Um Sonho de Liberdade',tags:{ehFilme:true,recente:false,acao:false,fantasia:false,americano:true,humanoComum:true,presente:false,romance:false,adulto:true,longo:true,oscar:true,adaptacao:true,franquia:false,vilao:true,finalTriste:false},raridade:'medio'},
-  {tmdb:238,nome:'O Poderoso Chefão',tags:{ehFilme:true,recente:false,acao:false,fantasia:false,americano:true,humanoComum:true,presente:false,romance:false,adulto:true,longo:true,oscar:true,adaptacao:true,franquia:true,vilao:true,finalTriste:true},raridade:'medio'},
-  {tmdb:680,nome:'Pulp Fiction',tags:{ehFilme:true,recente:false,acao:true,fantasia:false,americano:true,humanoComum:true,presente:true,romance:false,adulto:true,longo:true,oscar:true,adaptacao:false,franquia:false,vilao:true,finalTriste:false},raridade:'medio'},
-  {tmdb:13,nome:'Forrest Gump',tags:{ehFilme:true,recente:false,acao:false,fantasia:false,americano:true,humanoComum:true,presente:false,romance:true,adulto:false,longo:true,oscar:true,adaptacao:true,franquia:false,vilao:false,finalTriste:true},raridade:'comum'},
-  {tmdb:155,nome:'Batman: O Cavaleiro das Trevas',tags:{ehFilme:true,recente:true,acao:true,fantasia:false,americano:true,humanoComum:false,presente:true,romance:false,adulto:false,longo:true,oscar:true,adaptacao:true,franquia:true,vilao:true,finalTriste:true},raridade:'comum'},
-  {tmdb:27205,nome:'A Origem',tags:{ehFilme:true,recente:true,acao:true,fantasia:true,americano:true,humanoComum:true,presente:true,romance:false,adulto:false,longo:true,oscar:true,adaptacao:false,franquia:false,vilao:true,finalTriste:true},raridade:'medio'},
-  {tmdb:550,nome:'Clube da Luta',tags:{ehFilme:true,recente:false,acao:true,fantasia:false,americano:true,humanoComum:true,presente:true,romance:false,adulto:true,longo:true,oscar:false,adaptacao:true,franquia:false,vilao:false,finalTriste:true},raridade:'medio'},
-  {tmdb:1396,nome:'Breaking Bad',tags:{ehFilme:false,recente:true,acao:false,fantasia:false,americano:true,humanoComum:true,presente:true,romance:false,adulto:true,longo:false,oscar:false,adaptacao:false,franquia:false,vilao:true,finalTriste:true},raridade:'comum'},
-  {tmdb:1399,nome:'Game of Thrones',tags:{ehFilme:false,recente:true,acao:true,fantasia:true,americano:true,humanoComum:false,presente:false,romance:true,adulto:true,longo:false,oscar:true,adaptacao:true,franquia:false,vilao:true,finalTriste:true},raridade:'comum'},
-  {tmdb:66732,nome:'Stranger Things',tags:{ehFilme:false,recente:true,acao:true,fantasia:true,americano:true,humanoComum:true,presente:false,romance:true,adulto:false,longo:false,oscar:false,adaptacao:false,franquia:false,vilao:true,finalTriste:false},raridade:'comum'},
-  {tmdb:1408,nome:'House M.D.',tags:{ehFilme:false,recente:false,acao:false,fantasia:false,americano:true,humanoComum:true,presente:true,romance:false,adulto:false,longo:false,oscar:false,adaptacao:false,franquia:false,vilao:false,finalTriste:false},raridade:'medio'},
-  {tmdb:60625,nome:'Rick and Morty',tags:{ehFilme:false,recente:true,acao:true,fantasia:true,americano:true,humanoComum:false,presente:true,romance:false,adulto:true,longo:false,oscar:false,adaptacao:false,franquia:false,vilao:true,finalTriste:false},raridade:'medio'},
-  {tmdb:37854,nome:'One Piece',tags:{ehFilme:false,recente:false,acao:true,fantasia:true,americano:false,humanoComum:false,presente:true,romance:false,adulto:false,longo:false,oscar:false,adaptacao:true,franquia:false,vilao:true,finalTriste:false},raridade:'medio'},
-  {tmdb:1359251,nome:'The Last of Us',tags:{ehFilme:false,recente:true,acao:true,fantasia:true,americano:true,humanoComum:true,presente:true,romance:false,adulto:true,longo:false,oscar:true,adaptacao:true,franquia:false,vilao:false,finalTriste:true},raridade:'medio'},
-  {tmdb:76479,nome:'The Boys',tags:{ehFilme:false,recente:true,acao:true,fantasia:true,americano:true,humanoComum:true,presente:true,romance:false,adulto:true,longo:false,oscar:false,adaptacao:true,franquia:false,vilao:true,finalTriste:false},raridade:'medio'},
-  {tmdb:76600,nome:'Avatar: O Caminho da Água',tags:{ehFilme:true,recente:true,acao:true,fantasia:true,americano:true,humanoComum:false,presente:false,romance:true,adulto:false,longo:true,oscar:true,adaptacao:false,franquia:true,vilao:true,finalTriste:false},raridade:'raro'},
-  {tmdb:11,nome:'Star Wars: Uma Nova Esperança',tags:{ehFilme:true,recente:false,acao:true,fantasia:true,americano:true,humanoComum:true,presente:false,romance:false,adulto:false,longo:false,oscar:true,adaptacao:false,franquia:true,vilao:true,finalTriste:false},raridade:'comum'},
-];
-
-function iniciarJogo(){
-  jogoAtual = { respostas:{}, perguntaIdx:0, candidatos:[...BANCO] };
-  renderPergunta();
-}
-
-function renderPergunta(){
-  const cont = document.getElementById('jogarConteudo');
-  const j = jogoAtual;
-  const perg = PERGUNTAS[j.perguntaIdx];
-  const prog = Math.round((j.perguntaIdx/PERGUNTAS.length)*100);
-
-  cont.innerHTML = `
-    <div class="jogo-intro">
-      <h2>🔮 Estou Pensando...</h2>
-      <p>Responda com sinceridade. O Gênio das Sombras vê tudo.</p>
-    </div>
-    <div class="prog-wrap">
-      <div class="prog-info">
-        <span>PERGUNTA ${j.perguntaIdx+1} DE ${PERGUNTAS.length}</span>
-        <span>${prog}%</span>
-      </div>
-      <div class="prog-bar"><div class="prog-fill" style="width:${prog}%"></div></div>
-    </div>
-    <div class="pergunta-box">
-      <div class="pergunta-num">QUESTÃO ${j.perguntaIdx+1}</div>
-      <div class="pergunta-txt">${perg.txt}</div>
-    </div>
-    <div class="respostas">
-      <button class="resp-btn sim" onclick="responder(true)">✅ SIM</button>
-      <button class="resp-btn nao" onclick="responder(false)">❌ NÃO</button>
-      <button class="resp-btn talvez" onclick="responder(null)">🤔 NÃO SEI</button>
-    </div>
-  `;
-}
-
-function responder(val){
-  const j = jogoAtual;
-  const chave = PERGUNTAS[j.perguntaIdx].chave;
-
-  // Filtra candidatos baseado na resposta
-  if(val !== null){
-    j.candidatos = j.candidatos.filter(c => {
-      if(val === true) return c.tags[chave] === true;
-      if(val === false) return c.tags[chave] === false;
-      return true;
-    });
-    j.respostas[chave] = val;
-  }
-
-  j.perguntaIdx++;
-
-  // Se só tem 1 candidato ou acabaram as perguntas
-  if(j.candidatos.length === 1 || j.perguntaIdx >= PERGUNTAS.length || j.candidatos.length === 0){
-    const escolhido = j.candidatos.length > 0
-      ? j.candidatos[Math.floor(Math.random()*j.candidatos.length)]
-      : BANCO[Math.floor(Math.random()*BANCO.length)];
-    mostrarResultado(escolhido);
-  } else {
-    renderPergunta();
-  }
-}
-
-async function mostrarResultado(filme){
-  const cont = document.getElementById('jogarConteudo');
-  cont.innerHTML = `<div class="loading"><div class="loading-spinner"></div><div class="loading-txt">CONSULTANDO AS SOMBRAS...</div></div>`;
-
-  // Busca dados do TMDB
-  let dados = null;
-  try{
-    const r = await fetch(`/api/tmdb/${filme.tmdb}`);
-    dados = await r.json();
-  }catch(e){}
-
-  const capa = dados?.poster_path ? `https://image.tmdb.org/t/p/w500${dados.poster_path}` : null;
-  const sinopse = dados?.overview || 'Uma obra que marcou gerações com sua história única.';
-  const titulo = dados?.title || dados?.name || filme.nome;
-  const ano = dados?.release_date?.slice(0,4) || dados?.first_air_date?.slice(0,4) || '';
-
-  // Medalha
-  let medalha, medalhaCorTexto, pontos;
-  if(filme.raridade === 'raro'){ medalha='🥇'; medalhaCorTexto='OURO'; pontos=300; }
-  else if(filme.raridade === 'medio'){ medalha='🥈'; medalhaCorTexto='PRATA'; pontos=150; }
-  else { medalha='🥉'; medalhaCorTexto='BRONZE'; pontos=50; }
-
-  // Salva no banco
-  await fetch('/api/resultado',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({username:userLogado.username, tmdbId:filme.tmdb, nome:titulo, raridade:filme.raridade, pontos})});
-
-  // Carrega comentários
-  const comsR = await fetch(`/api/comentarios/${filme.tmdb}`);
-  const comsD = await comsR.json();
-  const comsHtml = comsD.map(c=>`
-    <div class="com-item">
-      <img class="com-av" src="${AVATARES[c.avatarIdx||0]}" onerror="this.src='https://ui-avatars.com/api/?name=${c.username[0]}&background=7b2fff&color=fff&size=60'">
-      <div class="com-bubble">
-        <div class="com-user">@${c.username}</div>
-        <div class="com-txt">${c.texto}</div>
-      </div>
-    </div>`).join('');
-
-  cont.innerHTML = `
-    <div style="margin-bottom:16px">
-      <div class="prog-wrap">
-        <div class="prog-info"><span>RESULTADO FINAL</span><span>100%</span></div>
-        <div class="prog-bar"><div class="prog-fill" style="width:100%"></div></div>
-      </div>
-    </div>
-    <div class="resultado-box">
-      ${capa ? `<img class="res-capa" src="${capa}" onerror="this.style.display='none'">` : `<div class="res-capa-ph">🎬</div>`}
-      <div class="res-body">
-        <div class="res-acertei">🔮 O GÊNIO REVELA...</div>
-        <div class="res-titulo">${titulo}</div>
-        <div class="res-ano">${ano}${filme.tags.ehFilme ? ' · Filme' : ' · Série'}</div>
-        <div class="res-sinopse">${sinopse}</div>
-
-        <div class="musica-player" id="playerRes">
-          <button class="musica-play" onclick="tocarMusica(${filme.tmdb},'playerRes')" id="playBtnRes">▶</button>
-          <div class="musica-info">
-            <div class="musica-nome">🎵 Trilha Sonora — ${titulo}</div>
-            <div class="musica-artista">Clique para ouvir no YouTube</div>
-            <div class="musica-bar"><div class="musica-prog" id="progRes"></div></div>
-          </div>
-        </div>
-
-        <div class="medalha-wrap">
-          <div class="medalha-ico">${medalha}</div>
-          <div class="medalha-info">
-            <div class="medalha-label">MEDALHA CONQUISTADA</div>
-            <div class="medalha-nome" style="color:${filme.raridade==='raro'?'var(--ouro)':filme.raridade==='medio'?'var(--prata)':'var(--bronze)'}">${medalhaCorTexto}</div>
-            <div class="medalha-pts">+${pontos} pontos</div>
-          </div>
-        </div>
-
-        <div class="res-btns">
-          <button class="btn-acertou" onclick="confirmarAcerto(${filme.tmdb})">✅ ACERTOU!</button>
-          <button class="btn-errou" onclick="iniciarJogo()">❌ ERROU</button>
-        </div>
-        <button class="btn-novojogo" onclick="iniciarJogo()">🔮 JOGAR NOVAMENTE</button>
-
-        <div class="coms-titulo">COMENTÁRIOS</div>
-        <div class="coms-lista" id="comsLista">${comsHtml || '<div style="color:var(--texto2);font-size:13px;padding:10px 0">Seja o primeiro a comentar!</div>'}</div>
-        <div class="com-row">
-          <input class="com-inp" id="comInp" placeholder="Comente sobre ${titulo}...">
-          <button class="com-send" onclick="enviarCom(${filme.tmdb})">→</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  userLogado.pontos = (userLogado.pontos||0) + pontos;
-  userLogado.jogos = (userLogado.jogos||0) + 1;
-  salvarSessao(userLogado);
-}
-
-async function confirmarAcerto(tmdbId){
-  await fetch('/api/acerto',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({username:userLogado.username, tmdbId})});
-  mostrarNotif('✅ Confirmado! Pontos registrados.', 'var(--verde)');
-}
-
-function tocarMusica(tmdbId, playerId){
-  // Abre busca no YouTube para a trilha sonora
-  const filme = BANCO.find(f=>f.tmdb===tmdbId);
-  if(filme) window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(filme.nome+' trilha sonora oficial')}`, '_blank');
-}
-
-async function enviarCom(tmdbId){
-  const inp = document.getElementById('comInp');
-  const txt = inp.value.trim();
-  if(!txt) return;
-  const r = await fetch('/api/comentario',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({username:userLogado.username, avatarIdx:userLogado.avatarIdx||0, tmdbId, texto:txt})});
-  const d = await r.json();
-  if(d.sucesso){
-    const lista = document.getElementById('comsLista');
-    lista.innerHTML += `
-      <div class="com-item">
-        <img class="com-av" src="${AVATARES[userLogado.avatarIdx||0]}">
-        <div class="com-bubble">
-          <div class="com-user">@${userLogado.username}</div>
-          <div class="com-txt">${txt}</div>
-        </div>
-      </div>`;
-    lista.scrollTop = lista.scrollHeight;
-    inp.value = '';
-  }
-}
-
-// ===== RANKING =====
-async function carregarRanking(){
-  const el = document.getElementById('rankingLista');
-  el.innerHTML = `<div class="loading"><div class="loading-spinner"></div></div>`;
-  const r = await fetch('/api/ranking');
-  const d = await r.json();
-  if(!d.length){
-    el.innerHTML = `<div class="vazio-wrap"><img class="vazio-img" src="https://i.imgur.com/8bV9ZuV.png" onerror="this.src='https://via.placeholder.com/180x180/0a0d14/7b2fff?text=?'"><div class="vazio-titulo">Nenhum jogador ainda</div><div class="vazio-sub">Seja o primeiro a conquistar o ranking!</div></div>`;
-    return;
-  }
-  el.innerHTML = d.map((u,i)=>`
-    <div class="rank-item">
-      <div class="rank-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${i<3?['🥇','🥈','🥉'][i]:i+1}</div>
-      <img class="rank-av" src="${AVATARES[u.avatarIdx||0]}" onerror="this.src='https://ui-avatars.com/api/?name=${u.username[0]}&background=7b2fff&color=fff&size=64'">
-      <div class="rank-info">
-        <div class="rank-nick">@${u.username}</div>
-        <div class="rank-pts">${u.pontos||0} PTS · ${u.jogos||0} JOGOS</div>
-      </div>
-      <div class="rank-medal">${u.pontos>=1000?'🥇':u.pontos>=300?'🥈':'🥉'}</div>
-    </div>`).join('');
-}
-
-// ===== MAIS JOGADOS =====
-async function carregarMaisJogados(){
-  const el = document.getElementById('maisJogadosLista');
-  el.innerHTML = `<div class="loading"><div class="loading-spinner"></div></div>`;
-  const r = await fetch('/api/maisJogados');
-  const d = await r.json();
-  if(!d.length){
-    el.innerHTML = `<div class="vazio-wrap"><img class="vazio-img" src="https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg" onerror="this.src='https://via.placeholder.com/180x180/0a0d14/7b2fff?text=Vazio'"><div class="vazio-titulo">Nenhum filme jogado ainda</div><div class="vazio-sub">Jogue para aparecer aqui!</div></div>`;
-    return;
-  }
-  el.innerHTML = d.map(f=>`
-    <div class="mj-card">
-      ${f.capa ? `<img class="mj-capa" src="${f.capa}" onerror="this.style.display='none'">` : `<div class="mj-capa-ph">🎬</div>`}
-      <div class="mj-body">
-        <div class="mj-nome">${f.nome}</div>
-        <div class="mj-stats">
-          <div class="mj-stat">🎮 <span>${f.jogos}</span> jogos</div>
-          <div class="mj-stat">✅ <span>${f.acertos}</span> acertos</div>
-        </div>
-        <div class="mj-player">
-          <button class="mj-play-btn" onclick="window.open('https://www.youtube.com/results?search_query=${encodeURIComponent((f.nome||'')+'trilha sonora')}','_blank')">▶</button>
-          <div class="mj-music-info">
-            <div class="mj-music-nome">🎵 Trilha Sonora — ${f.nome}</div>
-            <div class="mj-music-bar"><div class="mj-music-prog"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-// ===== PERFIL =====
-function carregarPerfil(){
-  if(!userLogado) return;
-  document.getElementById('perfilAv').src = AVATARES[userLogado.avatarIdx||0];
-  document.getElementById('perfilNick').textContent = '@'+userLogado.username;
-  document.getElementById('perfilPts').textContent = userLogado.pontos||0;
-  document.getElementById('perfilJogos').textContent = userLogado.jogos||0;
-  document.getElementById('perfilAcertos').textContent = userLogado.acertos||0;
-  const med = document.getElementById('perfilMedalhas');
-  const pts = userLogado.pontos||0;
-  let medalhas = [];
-  if(pts >= 50) medalhas.push({ico:'🥉',nome:'Bronze',cor:'var(--bronze)'});
-  if(pts >= 300) medalhas.push({ico:'🥈',nome:'Prata',cor:'var(--prata)'});
-  if(pts >= 1000) medalhas.push({ico:'🥇',nome:'Ouro',cor:'var(--ouro)'});
-  if(!medalhas.length) medalhas.push({ico:'🔮',nome:'Iniciante',cor:'var(--texto2)'});
-  med.innerHTML = medalhas.map(m=>`<div class="perfil-med">${m.ico} <span style="color:${m.cor}">${m.nome}</span></div>`).join('');
-}
-
-// ===== INIT =====
-window.addEventListener('DOMContentLoaded', function(){
-  carregarCaptcha();
-});
-</script>
-</body>
-</html>
+.perfil-av{width:78px;height:78px;border-radius:50%;object-fit:cover;border:3px solid var(--roxo);box-shadow:0 0 20px rgba(139,92,246,.35);margin:-40px 0 12px}
+.perfil-nick{font-family:'Cinzel Decorative',serif;font-size:17px;color:var(--branco);margin-bottom:16px}
+.perfil-stats{display:flex;gap:24px;margin-bottom:20px}
+.p-stat{display:flex;flex-direction:column;align-items:center;gap:2px}
+.p-stat-n{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--roxo)}
+.p-stat-l{font-size:9px;color:var(--cinza2);letter-sp
