@@ -46,12 +46,12 @@ app.get('/api/tmdb/:id',async(req,res)=>{
   try{
     const fetch=(await import('node-fetch')).default;
     const{id}=req.params; const tipo=req.query.tipo||'movie';
-    const url=`https://api.themoviedb.org/3/${tipo}/${id}?api_key=8265bd1679663a7ea12ac168da84d2e8&language=pt-BR`;
+    const TMDB=process.env.TMDB_KEY||'';
+    const url=`https://api.themoviedb.org/3/${tipo}/${id}?api_key=${TMDB}&language=pt-BR`;
     const r=await fetch(url); const d=await r.json();
     if(d.id) return res.json(d);
-    // tenta o outro tipo
     const tipo2=tipo==='movie'?'tv':'movie';
-    const r2=await fetch(`https://api.themoviedb.org/3/${tipo2}/${id}?api_key=8265bd1679663a7ea12ac168da84d2e8&language=pt-BR`);
+    const r2=await fetch(`https://api.themoviedb.org/3/${tipo2}/${id}?api_key=${TMDB}&language=pt-BR`);
     res.json(await r2.json());
   }catch(e){res.json({});}
 });
@@ -75,7 +75,8 @@ app.get('/api/youtube',async(req,res)=>{
   try{
     const fetch=(await import('node-fetch')).default;
     const q=req.query.q||'';
-    const url=`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&type=video&maxResults=1&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY`;
+    const YT=process.env.YOUTUBE_KEY||'';
+    const url=`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&type=video&maxResults=1&key=${YT}`;
     const r=await fetch(url); const d=await r.json();
     if(d.items&&d.items.length>0){
       return res.json({videoId:d.items[0].id.videoId,title:d.items[0].snippet.title});
@@ -136,7 +137,7 @@ app.get('/api/maisJogados',async(req,res)=>{
     for(const f of lista){
       if(!f.capa&&f.tmdbId){
         try{
-          const r=await fetch(`https://api.themoviedb.org/3/movie/${f.tmdbId}?api_key=8265bd1679663a7ea12ac168da84d2e8`);
+          const r=await fetch(`https://api.themoviedb.org/3/movie/${f.tmdbId}?api_key=${process.env.TMDB_KEY||''}`);
           const d=await r.json();
           if(d.poster_path) f.capa=`https://image.tmdb.org/t/p/w300${d.poster_path}`;
         }catch{}
