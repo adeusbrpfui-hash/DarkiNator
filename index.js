@@ -374,38 +374,67 @@ app.post('/api/jogo/pergunta', async (req, res) => {
 
   console.log('[IA] Prompt length:', prompt.length);
 
-  for (const modelo of ['meta-llama/llama-3.3-70b-instruct:free', 'deepseek/deepseek-r1:free', 'mistralai/mistral-small-3.1-24b-instruct:free']) {
+  const MODELOS = [
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'deepseek/deepseek-r1:free',
+    'mistralai/mistral-7b-instruct:free',
+    'qwen/qwen-2.5-7b-instruct:free',
+    'google/gemma-3-12b-it:free',
+  ];
+
+  for (const modelo of MODELOS) {
     try {
-      console.log('[IA] Tentando modelo:', modelo);
+      console.log('[IA] Tentando:', modelo);
       const r = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' },
+        headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app', 'X-Title': 'DarkiNator' },
         body: JSON.stringify({ model: modelo, max_tokens: 80, messages: [{ role: 'user', content: prompt }] })
       }, 15000);
       const d = await r.json();
       const txt = d.choices?.[0]?.message?.content || '';
-      console.log('[IA]', modelo, 'status:', r.status, 'resposta:', txt.slice(0,120));
-      const match = txt.match(/\{[\s\S]*?\}/);
-      if (match) {
-        const perg = JSON.parse(match[0]);
+      console.log('[IA]', modelo, 'status:', r.status, 'resp:', txt.slice(0,100));
+      if (r.status === 429 || r.status === 404 || !r.ok) { console.log('[IA] Pulando por status:', r.status); continue; }
+      const jsonMatch = txt.match(/\{[^{}]*\}/);
+      if (jsonMatch) {
+        const perg = JSON.parse(jsonMatch[0]);
         if (perg.id && perg.txt) {
-          const idLimpo = perg.id.toLowerCase()
-            .normalize('NFD').replace(/[̀-ͯ]/g,'')
-            .replace(/[^a-z0-9_]/g,'_').replace(/__+/g,'_').slice(0,40);
+          const idLimpo = perg.id.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/__+/g,'_').slice(0,40);
           if (idLimpo && !feitas.has(idLimpo)) {
             perg.id = idLimpo;
-            console.log('[IA] Pergunta gerada:', JSON.stringify(perg));
+            console.log('[IA] Pergunta OK:', JSON.stringify(perg));
             return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
           }
-          console.log('[IA] ID repetido:', idLimpo);
         }
       }
-    } catch(e) {
-      console.log('[IA] Erro modelo', modelo, ':', e.message);
-    }
+    } catch(e) { console.log('[IA] Erro:', modelo, e.message); }
   }
-
-  console.log('[IA] Todas falharam, revelando titulo');
+  // IA falhou — usa pergunta fixa do banco como fallback
+  // NUNCA revela o resultado por falha da IA
+  console.log('[IA] Todos os modelos falharam, usando pergunta fixa de fallback');
+  const FALLBACK_PERGS = [
+    {id:'espaco',     txt:'A história acontece no espaço?'},
+    {id:'baseadofatos',txt:'É baseado em fatos reais?'},
+    {id:'sobrevive',  txt:'O protagonista sobrevive até o final?'},
+    {id:'adaptacao',  txt:'É baseado em livro, quadrinho ou jogo?'},
+    {id:'musical',    txt:'É um musical com personagens cantando?'},
+    {id:'brasil',     txt:'É brasileiro ou se passa no Brasil?'},
+    {id:'japao',      txt:'É japonês ou se passa no Japão?'},
+    {id:'espiao',     txt:'Tem espiões ou agentes secretos?'},
+    {id:'zumbi',      txt:'Tem zumbis?'},
+    {id:'vampiro',    txt:'Tem vampiros?'},
+    {id:'escola',     txt:'Se passa principalmente numa escola?'},
+    {id:'vinganca',   txt:'A vingança é motivação principal?'},
+    {id:'distopia',   txt:'É distopia futurista?'},
+    {id:'survival',   txt:'Envolve sobrevivência extrema?'},
+    {id:'robos',      txt:'Tem robôs ou inteligência artificial?'},
+  ];
+  const fallback = FALLBACK_PERGS.find(p => !feitas.has(p.id));
+  if (fallback) {
+    console.log('[FALLBACK] Usando pergunta fixa:', fallback.id);
+    return res.json({ pergunta: fallback, fase: 4, bloco: 'Fallback', candidatos: candidatos.length, num: num+1, total: 30 });
+  }
+  // Esgotou tudo — aí sim revela
+  console.log('[FALLBACK] Sem mais perguntas disponíveis, revelando');
   res.json({ pergunta: null, revelar: true, candidatos: candidatos.length });
 });
 
