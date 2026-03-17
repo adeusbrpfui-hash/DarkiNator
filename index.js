@@ -372,19 +372,19 @@ app.post('/api/jogo/pergunta', async (req, res) => {
   // Verifica qual bloco está
   const proxB1 = BLOCO1.find(p => !feitas.has(p.id));
   if (proxB1) {
-    return res.json({ pergunta: proxB1, fase: 1, bloco: 'Tipo e Formato', num: BLOCO1.indexOf(proxB1)+1, total: 15 });
+    return res.json({ pergunta: proxB1, fase: 1, bloco: 'Tipo e Formato', num: BLOCO1.indexOf(proxB1)+1, total: 30 });
   }
 
   const bloco2 = gerarBloco2(respostas || []);
   const proxB2 = bloco2.find(p => !feitas.has(p.id));
   if (proxB2) {
-    return res.json({ pergunta: proxB2, fase: 2, bloco: 'Gênero', num: 5+bloco2.indexOf(proxB2)+1, total: 15 });
+    return res.json({ pergunta: proxB2, fase: 2, bloco: 'Gênero', num: 5+bloco2.indexOf(proxB2)+1, total: 30 });
   }
 
   const bloco3 = gerarBloco3(respostas || []);
   const proxB3 = bloco3.find(p => !feitas.has(p.id));
   if (proxB3) {
-    return res.json({ pergunta: proxB3, fase: 3, bloco: 'Características', num: 10+bloco3.indexOf(proxB3)+1, total: 15 });
+    return res.json({ pergunta: proxB3, fase: 3, bloco: 'Características', num: 10+bloco3.indexOf(proxB3)+1, total: 30 });
   }
 
   // ============================================================
