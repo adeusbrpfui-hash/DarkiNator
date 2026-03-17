@@ -42,6 +42,7 @@ const DATA_DIR = fs.existsSync('/data') ? '/data' : __dirname;
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 const TITULOS_PATH = path.join(DATA_DIR, 'titulos.json');
 const FILA_PATH = path.join(DATA_DIR, 'fila.json');
+const PERGS_PATH = path.join(DATA_DIR, 'perguntas_dinamicas.json');
 
 const TMDB_KEY = process.env.TMDB_KEY || '8265bd1679663a7ea12ac168da84d2e8';
 const OR_KEY = process.env.OPENROUTER_KEY || '';
@@ -60,6 +61,8 @@ function lerTitulos() { return lerJSON(TITULOS_PATH, { titulos:[], expansaoHoje:
 function salvarTitulos(d) { salvarJSON(TITULOS_PATH, d); }
 function lerFila() { return lerJSON(FILA_PATH, { pendentes:[], processados:[] }); }
 function salvarFila(d) { salvarJSON(FILA_PATH, d); }
+function lerPergsD() { return lerJSON(PERGS_PATH, { perguntas:[], ultimaGeracao:'' }); }
+function salvarPergsD(d) { salvarJSON(PERGS_PATH, d); }
 
 const TITULOS_INICIAIS = [
   {id:'t001',tmdb:217,nome:'Chaves',tipo:'tv',raridade:'comum',yt:'jNZWkAkR5cE',capa:'https://image.tmdb.org/t/p/w500/iODFGNDmuUFWBQBiuKcGsVbMCdN.jpg',sinopse:'Série cômica mexicana sobre um menino órfão que mora num barril.',tags:{filme:-1,pos2010:-1,acao:-1,fantasia:-1,scifi:-1,americano:-1,poderes:-1,historico:-1,comedia:1,adulto:-1,longo:-1,oscar:-1,adaptacao:-1,franquia:1,vilao:1,finaltriste:-1,romance:-1,animacao:-1,criancas:1,espaco:-1,crime:-1,guerra:-1,antiheroi:-1,terror:-1,trilhafamosa:1,ante2000:1,reviravolta:-1,sobrevive:1,viagemtempo:-1,baseadofatos:-1,maisdeuma:1,anime:-1,superheroi:-1,amizade:1,naohuman:-1,classico:1,muitosprot:1,posapoc:-1,protmulher:-1,danca:-1,mexico:1,brasil:-1,japao:-1,infantil:1,orfao:1,magia:-1,esporte:-1,musical:-1,policial:-1,sobrenatural:-1,familia:1,vinganca:-1,survival:-1,distopia:-1,robos:-1,zumbi:-1,vampiro:-1,espiao:-1,escola:1,mitologia:-1}},
@@ -187,7 +190,13 @@ app.get('/api/titulos', (req, res) => {
   res.json({ titulos: dados.titulos, total: dados.titulos.length });
 });
 
-app.get('/api/perguntas', (req, res) => res.json(PERGUNTAS));
+app.get('/api/perguntas', (req, res) => {
+  const dinamicas = lerPergsD();
+  // Mescla fixas + dinâmicas, remove duplicatas por id
+  const todasIds = new Set(PERGUNTAS.map(p => p.id));
+  const extras = (dinamicas.perguntas || []).filter(p => !todasIds.has(p.id));
+  res.json([...PERGUNTAS, ...extras]);
+});
 
 app.post('/api/resultado', (req, res) => {
   const { username, tituloId, nome, raridade, pontos, capa, acertou } = req.body;
@@ -247,6 +256,8 @@ async function processarTitulo(nome) {
       titulos.titulos.push({ id: 't' + Date.now(), tmdb: tmdbId, nome: nomeFinal, tipo, raridade, yt: null, capa, sinopse, tags });
       salvarTitulos(titulos);
       console.log('✅ Adicionado:', nomeFinal);
+      // Gera perguntas específicas para este título em background
+      if (OR_KEY && sinopse) gerarPerguntasEspecificas(nomeFinal, sinopse, tags).catch(console.error);
     }
     const fila = lerFila();
     fila.pendentes = fila.pendentes.filter(p => p.nome.toLowerCase() !== nome.toLowerCase());
@@ -298,6 +309,119 @@ Use 1=sim, -1=não, 0=incerto.`;
     } catch (e) { console.log('OpenRouter indisponível'); }
   }
   return tags;
+}
+
+// ============================================================
+// GERAÇÃO DE PERGUNTAS ESPECÍFICAS POR TÍTULO
+// ============================================================
+async function gerarPerguntasEspecificas(nome, sinopse, tagsExistentes) {
+  if (!OR_KEY) return;
+  try {
+    const tagsStr = Object.entries(tagsExistentes||{}).filter(([,v])=>v===1).map(([k])=>k).join(', ');
+    const prompt = `Você é um assistente do jogo DarkiNator (estilo Akinator de filmes/séries).
+
+Título: "${nome}"
+Sinopse: "${sinopse}"
+Tags que já existem: ${tagsStr}
+
+Gere 5 perguntas SIM/NÃO muito específicas e únicas para este título que ajudariam a diferenciá-lo de outros.
+Perguntas boas são aquelas que só este título (ou poucos) responderia SIM.
+
+Responda SOMENTE com JSON válido, sem texto extra:
+[
+  {"id": "id_unico_snake_case", "txt": "Pergunta clara em português?", "titulo": "${nome}", "resposta": 1},
+  {"id": "id_unico_snake_case", "txt": "Pergunta clara em português?", "titulo": "${nome}", "resposta": 1}
+]
+
+Regras:
+- id deve ser único, em snake_case, sem espaços, sem acentos
+- txt deve ser uma pergunta clara terminando com ?
+- resposta: 1 se o título responde SIM, -1 se NÃO
+- Seja criativo: características visuais, personagens famosos, objetos icônicos, locais, épocas`;
+
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' },
+      body: JSON.stringify({ model: OR_MODEL, max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+    });
+    const rd = await resp.json();
+    const txt = rd.choices?.[0]?.message?.content || '';
+    const match = txt.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (!match) return;
+    
+    const novas = JSON.parse(match[0]);
+    if (!Array.isArray(novas) || novas.length === 0) return;
+
+    const pergsD = lerPergsD();
+    const idsExistentes = new Set([
+      ...PERGUNTAS.map(p => p.id),
+      ...(pergsD.perguntas || []).map(p => p.id)
+    ]);
+
+    let adicionadas = 0;
+    for (const p of novas) {
+      if (!p.id || !p.txt || idsExistentes.has(p.id)) continue;
+      // Valida o id — só letras, números e _
+      if (!/^[a-z0-9_]+$/.test(p.id)) continue;
+      pergsD.perguntas.push({ id: p.id, txt: p.txt, titulo: nome, resposta: p.resposta || 1, geradoEm: new Date().toISOString() });
+      idsExistentes.add(p.id);
+      adicionadas++;
+    }
+
+    if (adicionadas > 0) {
+      salvarPergsD(pergsD);
+      console.log(`💬 ${adicionadas} perguntas novas geradas para: ${nome}`);
+      
+      // Adiciona as tags novas ao título no banco
+      const titulos = lerTitulos();
+      const titulo = titulos.titulos.find(t => t.nome === nome);
+      if (titulo) {
+        for (const p of novas) {
+          if (p.id && /^[a-z0-9_]+$/.test(p.id)) {
+            titulo.tags[p.id] = p.resposta || 1;
+          }
+        }
+        salvarTitulos(titulos);
+      }
+    }
+  } catch(e) { console.log('Erro gerando perguntas para', nome, ':', e.message); }
+}
+
+// ============================================================
+// GERAÇÃO EM LOTE — 100 perguntas a cada 6h
+// ============================================================
+let geracaoRodando = false;
+async function gerarPerguntasEmLote() {
+  if (!OR_KEY || geracaoRodando) return;
+  geracaoRodando = true;
+  
+  const pergsD = lerPergsD();
+  const hoje = new Date().toDateString();
+  if (pergsD.ultimaGeracao === hoje) { geracaoRodando = false; return; }
+  
+  console.log('💬 Gerando perguntas em lote...');
+  const titulos = lerTitulos();
+  
+  // Pega até 20 títulos aleatórios para gerar perguntas
+  const amostra = [...titulos.titulos].sort(() => Math.random() - 0.5).slice(0, 20);
+  let totalGeradas = 0;
+
+  for (const titulo of amostra) {
+    if (totalGeradas >= 100) break;
+    if (!titulo.sinopse) continue;
+    try {
+      await gerarPerguntasEspecificas(titulo.nome, titulo.sinopse, titulo.tags || {});
+      totalGeradas += 5;
+      await new Promise(r => setTimeout(r, 1500));
+    } catch(e) { console.log('Erro lote:', e.message); }
+  }
+
+  pergsD.ultimaGeracao = hoje;
+  salvarPergsD(pergsD);
+  geracaoRodando = false;
+  
+  const total = lerPergsD().perguntas.length;
+  console.log(`💬 Lote concluído. Total perguntas dinâmicas: ${total}`);
 }
 
 let expansaoRodando = false;
@@ -371,6 +495,12 @@ app.get('/api/info', (req, res) => {
   res.json({ totalTitulos: t.titulos.length, filaProcessando: f.pendentes.length, versao: '3.0' });
 });
 
+// Perguntas dinâmicas salvas
+app.get('/api/perguntas-dinamicas', (req, res) => {
+  const d = lerPergsD();
+  res.json({ total: (d.perguntas||[]).length, perguntas: d.perguntas||[] });
+});
+
 // Busca música no Deezer pelo backend — sem CORS
 app.get('/api/musica', async (req, res) => {
   const q = req.query.q;
@@ -397,4 +527,7 @@ app.listen(PORT, () => {
   initTitulos();
   setTimeout(() => expandirBanco(), 15000);
   setInterval(() => expandirBanco(), 6 * 60 * 60 * 1000);
+  // Gera perguntas dinâmicas em lote a cada 6h (com 30min de offset)
+  setTimeout(() => gerarPerguntasEmLote(), 30 * 60 * 1000);
+  setInterval(() => gerarPerguntasEmLote(), 6 * 60 * 60 * 1000);
 });
