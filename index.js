@@ -237,28 +237,55 @@ app.get('/api/fila', (req, res) => {
 async function processarTitulo(nome) {
   console.log('Processando:', nome);
   try {
+    // Busca em pt-BR primeiro, depois en como fallback
     const busca = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(nome)}&language=pt-BR`);
     const bd = await busca.json();
-    if (!bd.results || bd.results.length === 0) return;
+    if (!bd.results || bd.results.length === 0) { console.log('Não encontrado no TMDB:', nome); return; }
+    
     const r = bd.results[0];
     const tipo = r.media_type === 'movie' ? 'movie' : 'tv';
     const tmdbId = r.id;
-    const nomeFinal = r.title || r.name || nome;
-    const sinopse = r.overview || '';
+    
+    // Busca detalhes completos para pegar nome oficial em pt-BR
+    const detUrl = `https://api.themoviedb.org/3/${tipo}/${tmdbId}?api_key=${TMDB_KEY}&language=pt-BR`;
+    let nomeFinal = r.title || r.name || nome;
+    let sinopse = r.overview || '';
+    let generos = r.genre_ids || [];
+    
+    try {
+      const det = await fetch(detUrl);
+      const dd = await det.json();
+      // Usa nome em pt-BR se disponível, senão original
+      nomeFinal = dd.title || dd.name || nomeFinal;
+      sinopse = dd.overview || sinopse;
+      generos = (dd.genres || []).map(g => g.id);
+    } catch(e) {}
+    
+    // Nome de busca para Deezer = nome original (mais preciso)
+    const nomeOriginal = r.original_title || r.original_name || nomeFinal;
+    
     const capa = r.poster_path ? `https://image.tmdb.org/t/p/w500${r.poster_path}` : '';
-    const generos = r.genre_ids || [];
     const ano = (r.release_date || r.first_air_date || '2000').slice(0, 4);
     const pop = r.popularity || 0;
     const raridade = pop > 50 ? 'comum' : pop > 10 ? 'medio' : 'raro';
     const tags = await gerarTagsIA(nomeFinal, sinopse, generos, tipo, ano);
+    
     const titulos = lerTitulos();
     if (!titulos.titulos.find(t => t.tmdb === tmdbId)) {
-      titulos.titulos.push({ id: 't' + Date.now(), tmdb: tmdbId, nome: nomeFinal, tipo, raridade, yt: null, capa, sinopse, tags });
+      const novoTitulo = { 
+        id: 't' + Date.now(), 
+        tmdb: tmdbId, 
+        nome: nomeFinal,
+        nomeOriginal,  // salva nome original para busca de música
+        tipo, raridade, yt: null, capa, sinopse, tags 
+      };
+      titulos.titulos.push(novoTitulo);
       salvarTitulos(titulos);
-      console.log('✅ Adicionado:', nomeFinal);
-      // Gera perguntas específicas para este título em background
+      console.log('✅ Adicionado:', nomeFinal, '| Original:', nomeOriginal);
+      // Gera perguntas específicas imediatamente
       if (OR_KEY && sinopse) gerarPerguntasEspecificas(nomeFinal, sinopse, tags).catch(console.error);
     }
+    
     const fila = lerFila();
     fila.pendentes = fila.pendentes.filter(p => p.nome.toLowerCase() !== nome.toLowerCase());
     fila.processados.push({ nome: nomeFinal, data: new Date().toISOString() });
@@ -508,6 +535,9 @@ app.get('/api/musica', async (req, res) => {
   try {
     const nomeMin = nome.toLowerCase();
     
+    // Usa nome original para busca (mais preciso no Deezer)
+    const nomeOriginal = req.query.original || nome;
+    
     // Função de score para avaliar quão relevante é a faixa
     function scoreFaixa(track) {
       let score = 0;
@@ -531,11 +561,12 @@ app.get('/api/musica', async (req, res) => {
     }
     
     const tentativas = [
-      `${nome} theme`,
-      `${nome} opening`,
-      `${nome} soundtrack`,
+      `${nomeOriginal} theme`,
+      `${nomeOriginal} opening`,
+      `${nomeOriginal} soundtrack`,
       `${nome} trilha sonora`,
       `${nome} tema musical`,
+      nomeOriginal,
     ];
     
     let melhorTrack = null;
