@@ -301,48 +301,80 @@ app.get('/api/perguntas', (req, res) => {
 // ============================================================
 // SISTEMA DE JOGO IA — ROTA PRINCIPAL
 // ============================================================
+
+function BANCO_TAMANHO() {
+  try { return lerTitulos().titulos.length; } catch { return 0; }
+}
+
 app.post('/api/jogo/pergunta', async (req, res) => {
   const { respostas, candidatos_tmdb } = req.body;
   // respostas = [{id, txt, resposta}] — histórico do jogo
   // candidatos_tmdb = lista de IDs tmdb já filtrados (opcional)
 
   try {
-    // Se não tem OpenRouter, usa perguntas fixas
-    if (!OR_KEY) {
-      const pergs = lerPergs();
-      const idsBase = new Set(PERGUNTAS_BASE.map(p => p.id));
-      const extras = (pergs.perguntas || []).filter(p => !idsBase.has(p.id));
-      const todas = [...PERGUNTAS_BASE, ...extras];
-      const feitas = new Set((respostas || []).map(r => r.id));
-      const proxima = todas.find(p => !feitas.has(p.id));
-      return res.json({ pergunta: proxima || null, fallback: true });
-    }
-
-    const historico = (respostas || []).map(r => `"${r.txt}" → ${r.resposta > 0 ? 'SIM' : r.resposta < 0 ? 'NÃO' : 'TALVEZ'}`).join('\n');
+    const feitas = new Set((respostas || []).map(r => r.id));
     const numRespostas = (respostas || []).length;
 
-    // Busca candidatos do TMDB baseado nas respostas
-    let candidatosTMDB = [];
-    if (numRespostas >= 2) {
-      candidatosTMDB = await buscarCandidatosTMDB(respostas || []);
+    // ============================================================
+    // FASE 1 — 5 PERGUNTAS FIXAS OBRIGATÓRIAS EM ORDEM LÓGICA
+    // Eliminam categorias grandes antes da IA entrar
+    // ============================================================
+    const PERGS_FASE1 = [
+      {id:'filme',     txt:'É um filme (não uma série)?'},
+      {id:'animacao',  txt:'É animação ou desenho animado?'},
+      {id:'pos2010',   txt:'Foi lançado depois de 2010?'},
+      {id:'infantil',  txt:'É voltado para crianças ou adolescentes?'},
+      {id:'americano', txt:'É produção americana (EUA)?'},
+    ];
+
+    // Retorna próxima da fase 1 se ainda não foi respondida
+    const proxFase1 = PERGS_FASE1.find(p => !feitas.has(p.id));
+    if (proxFase1) {
+      return res.json({ pergunta: proxFase1, fase: 1, candidatos: BANCO_TAMANHO() });
     }
 
-    const prompt = `Você é o DarkiNator, um gênio que adivinha filmes e séries.
+    // ============================================================
+    // FASE 2 — IA com contexto completo das 5 respostas base
+    // ============================================================
+    const candidatosTMDB = await buscarCandidatosTMDB(respostas || []);
+    
+    if (!OR_KEY) {
+      // Sem IA: usa perguntas fixas restantes
+      const todas = [...PERGUNTAS_BASE, ...(lerPergs().perguntas||[])];
+      const proxima = todas.find(p => !feitas.has(p.id));
+      return res.json({ pergunta: proxima || null, fallback: true, candidatos: candidatosTMDB.length });
+    }
 
-Respostas do jogador até agora (${numRespostas} perguntas):
-${historico || 'Nenhuma ainda'}
+    const historico = (respostas || []).map(r => 
+      `"${r.txt}" → ${r.resposta >= 0.5 ? 'SIM' : r.resposta <= -0.5 ? 'NÃO' : 'TALVEZ'}`
+    ).join('\n');
 
-${candidatosTMDB.length > 0 ? `Candidatos possíveis no TMDB: ${candidatosTMDB.slice(0,8).map(c=>c.nome).join(', ')}` : ''}
+    const listaCandidatos = candidatosTMDB.slice(0, 10)
+      .map(c => `- ${c.nome} (${c.tipo})`)
+      .join('\n');
 
-Perguntas já feitas: ${(respostas||[]).map(r=>r.id).join(', ')}
+    const prompt = `Você é o DarkiNator, gênio que adivinha filmes e séries.
 
-Crie a MELHOR pergunta SIM/NÃO para eliminar o máximo de candidatos.
-- Se poucos candidatos restam (${candidatosTMDB.length} candidatos), faça pergunta ultra específica
-- Pergunta deve ser clara, em português, terminar com ?
-- id deve ser único em snake_case sem acentos
+O jogador já respondeu essas perguntas base:
+${historico}
+
+Com base nisso, os candidatos mais prováveis são:
+${listaCandidatos || 'Ainda analisando...'}
+
+Perguntas já feitas (NÃO repita): ${[...feitas].join(', ')}
+
+SUA TAREFA: Criar a pergunta SIM/NÃO MAIS INTELIGENTE que:
+1. Elimine metade dos candidatos de uma vez
+2. Seja lógica em relação às respostas anteriores
+3. Se poucos candidatos (${candidatosTMDB.length}), seja ultra específica sobre um deles
+
+EXEMPLOS DE BOAS PERGUNTAS:
+- "O protagonista tem poderes sobrenaturais?"
+- "A história se passa no espaço?"
+- "Tem dragões ou criaturas fantásticas?"
 
 Responda SOMENTE com JSON:
-{"id":"snake_case_id","txt":"Pergunta em português?"}`;
+{"id":"snake_case_sem_acentos","txt":"Pergunta clara em português?"}`;
 
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -351,7 +383,7 @@ Responda SOMENTE com JSON:
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://darkinatror.up.railway.app'
       },
-      body: JSON.stringify({ model: OR_MODEL, max_tokens: 150, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: OR_MODEL, max_tokens: 100, messages: [{ role: 'user', content: prompt }] })
     });
 
     const rd = await resp.json();
@@ -360,23 +392,19 @@ Responda SOMENTE com JSON:
 
     if (match) {
       const perg = JSON.parse(match[0]);
-      if (perg.id && perg.txt) {
-        return res.json({ pergunta: perg, candidatos: candidatosTMDB.length });
+      // Valida: id válido, não repetida, tem texto
+      if (perg.id && perg.txt && !feitas.has(perg.id) && /^[a-z0-9_]+$/.test(perg.id)) {
+        return res.json({ pergunta: perg, fase: 2, candidatos: candidatosTMDB.length });
       }
     }
 
-    // Fallback para perguntas fixas
-    const pergsD = lerPergs();
-    const idsBase = new Set(PERGUNTAS_BASE.map(p => p.id));
-    const extras = (pergsD.perguntas || []).filter(p => !idsBase.has(p.id));
-    const todas = [...PERGUNTAS_BASE, ...extras];
-    const feitas = new Set((respostas || []).map(r => r.id));
+    // Fallback: perguntas fixas restantes
+    const todas = [...PERGUNTAS_BASE, ...(lerPergs().perguntas||[])];
     const proxima = todas.find(p => !feitas.has(p.id));
-    res.json({ pergunta: proxima || null, fallback: true });
+    res.json({ pergunta: proxima || null, fallback: true, candidatos: candidatosTMDB.length });
 
   } catch(e) {
     console.log('Erro jogo/pergunta:', e.message);
-    // Fallback garantido
     const feitas = new Set((respostas || []).map(r => r.id));
     const proxima = PERGUNTAS_BASE.find(p => !feitas.has(p.id));
     res.json({ pergunta: proxima || null, fallback: true, erro: e.message });
