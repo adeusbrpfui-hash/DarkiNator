@@ -302,6 +302,21 @@ app.get('/api/perguntas', (req, res) => {
 // SISTEMA DE JOGO IA — ROTA PRINCIPAL
 // ============================================================
 
+
+// Helper fetch com timeout global
+async function fetchComTimeout(url, opts, ms=15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timer);
+    return r;
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
 function BANCO_TAMANHO() {
   try { return lerTitulos().titulos.length; } catch { return 0; }
 }
@@ -403,20 +418,6 @@ app.post('/api/jogo/pergunta', async (req, res) => {
   const prompt = `Adivinha filme/serie. Candidatos: ${nomesCands||'varios'}. Respostas: ${historicoCurto}. IDs usados: ${idsRecentes}. Crie 1 pergunta SIM/NAO especifica. JSON: {"id":"snake_id","txt":"Pergunta?"}`;
 
   console.log('[IA] Chamando. Candidatos:' + candidatos.length + ' Prompt:' + prompt.length + 'chars');
-
-    // Helper com timeout de 8s para não travar
-  async function fetchComTimeout(url, opts, ms=8000) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ms);
-    try {
-      const r = await fetch(url, { ...opts, signal: controller.signal });
-      clearTimeout(timer);
-      return r;
-    } catch(e) {
-      clearTimeout(timer);
-      throw e;
-    }
-  }
 
   if (!OR_KEY) {
     // Sem IA: vai direto para revelar
