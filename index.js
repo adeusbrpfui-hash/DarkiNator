@@ -503,19 +503,44 @@ app.get('/api/perguntas-dinamicas', (req, res) => {
 
 // Busca música no Deezer pelo backend — sem CORS
 app.get('/api/musica', async (req, res) => {
-  const q = req.query.q;
-  if (!q) return res.json({ erro: 'Informe q' });
+  const nome = req.query.q;
+  if (!nome) return res.json({ erro: 'Informe q' });
   try {
-    const r = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
-    const d = await r.json();
-    const track = d.data?.[0];
-    if (!track) return res.json({ erro: 'Nao encontrado' });
-    res.json({
-      titulo: track.title,
-      artista: track.artist?.name || '',
-      preview: track.preview || '',
-      capa: track.album?.cover_medium || ''
-    });
+    // Tenta várias buscas em ordem de especificidade
+    const tentativas = [
+      `${nome} opening theme`,
+      `${nome} soundtrack`,
+      `${nome} theme song`,
+      `${nome} trilha sonora`,
+      nome
+    ];
+    
+    for (const q of tentativas) {
+      const r = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=5`);
+      const d = await r.json();
+      if (!d.data || d.data.length === 0) continue;
+      
+      // Prefere faixas onde o título do álbum ou artista menciona o nome da série
+      const nomeMin = nome.toLowerCase();
+      let track = d.data.find(t => 
+        t.album?.title?.toLowerCase().includes(nomeMin) ||
+        t.title?.toLowerCase().includes(nomeMin)
+      );
+      
+      // Se não achou específico, pega o primeiro com preview
+      if (!track) track = d.data.find(t => t.preview);
+      if (!track) continue;
+      if (!track.preview) continue;
+      
+      return res.json({
+        titulo: track.title,
+        artista: track.artist?.name || '',
+        preview: track.preview,
+        capa: track.album?.cover_medium || track.album?.cover_small || ''
+      });
+    }
+    
+    res.json({ erro: 'Trilha não encontrada' });
   } catch(e) {
     res.json({ erro: e.message });
   }
