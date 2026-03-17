@@ -756,20 +756,22 @@ async function renderPerg(){
     const d = await r.json();
     clearInterval(intervalo);
 
-    // Se IA falhou temporariamente, espera 3s e tenta novamente
-    if(d.aguardando){
-      document.getElementById('jogarConteudo').innerHTML=`
-        <div class="pensando">
-          <div class="spinner"></div>
-          <div class="pensando-txt">O gênio está consultando forças superiores...</div>
-          <div style="font-size:11px;color:#64748b;margin-top:8px">Tentando novamente em instantes...</div>
-        </div>`;
-      setTimeout(()=>renderPerg(), 3000);
+    // Log para debug
+    console.log('[JOGO] Resposta API pergunta:', JSON.stringify(d).slice(0,200));
+
+    // IA mandou revelar direto (falhou)
+    if(d.revelar || d.aguardando){
+      console.log('[JOGO] IA falhou, revelando direto');
+      await mostrarResultado();
       return;
     }
 
     const pg = d.pergunta;
-    if(!pg){ await mostrarResultado(); return; }
+    if(!pg){ 
+      console.log('[JOGO] Sem pergunta, revelando');
+      await mostrarResultado(); 
+      return; 
+    }
 
     // Se chegou ao limite de perguntas
     if(jogo.idx >= jogo.maxPergs){ await mostrarResultado(); return; }
