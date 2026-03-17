@@ -343,6 +343,26 @@ app.get('/api/info', (req, res) => {
   res.json({ totalTitulos: t.titulos.length, filaProcessando: f.pendentes.length, versao: '3.0' });
 });
 
+// Busca música no Deezer pelo backend — sem CORS
+app.get('/api/musica', async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.json({ erro: 'Informe q' });
+  try {
+    const r = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
+    const d = await r.json();
+    const track = d.data?.[0];
+    if (!track) return res.json({ erro: 'Nao encontrado' });
+    res.json({
+      titulo: track.title,
+      artista: track.artist?.name || '',
+      preview: track.preview || '',
+      capa: track.album?.cover_medium || ''
+    });
+  } catch(e) {
+    res.json({ erro: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`DarkiNator v3 porta ${PORT}`);
