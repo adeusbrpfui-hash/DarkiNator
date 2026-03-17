@@ -307,109 +307,146 @@ function BANCO_TAMANHO() {
 }
 
 app.post('/api/jogo/pergunta', async (req, res) => {
-  const { respostas, candidatos_tmdb } = req.body;
-  // respostas = [{id, txt, resposta}] — histórico do jogo
-  // candidatos_tmdb = lista de IDs tmdb já filtrados (opcional)
+  const { respostas } = req.body;
+  const feitas = new Set((respostas || []).map(r => r.id));
+  const num = (respostas || []).length;
 
-  try {
-    const feitas = new Set((respostas || []).map(r => r.id));
-    const numRespostas = (respostas || []).length;
+  // ============================================================
+  // BLOCO 1 — 5 perguntas de TIPO E FORMATO
+  // ============================================================
+  const BLOCO1 = [
+    {id:'filme',     txt:'É um filme (não uma série)?'},
+    {id:'animacao',  txt:'É animação ou desenho animado?'},
+    {id:'pos2010',   txt:'Foi lançado depois de 2010?'},
+    {id:'infantil',  txt:'É voltado para crianças ou adolescentes?'},
+    {id:'americano', txt:'É produção americana (EUA)?'},
+  ];
 
-    // ============================================================
-    // FASE 1 — 5 PERGUNTAS FIXAS OBRIGATÓRIAS EM ORDEM LÓGICA
-    // Eliminam categorias grandes antes da IA entrar
-    // ============================================================
-    const PERGS_FASE1 = [
-      {id:'filme',     txt:'É um filme (não uma série)?'},
-      {id:'animacao',  txt:'É animação ou desenho animado?'},
-      {id:'pos2010',   txt:'Foi lançado depois de 2010?'},
-      {id:'infantil',  txt:'É voltado para crianças ou adolescentes?'},
-      {id:'americano', txt:'É produção americana (EUA)?'},
-    ];
+  // ============================================================
+  // BLOCO 2 — 5 perguntas de GÊNERO
+  // Adapta baseado nas respostas do bloco 1
+  // ============================================================
+  function gerarBloco2(resps) {
+    const sim = id => resps.find(r => r.id === id && r.resposta >= 0.5);
+    const nao = id => resps.find(r => r.id === id && r.resposta <= -0.5);
+    const pergs = [];
 
-    // Retorna próxima da fase 1 se ainda não foi respondida
-    const proxFase1 = PERGS_FASE1.find(p => !feitas.has(p.id));
-    if (proxFase1) {
-      return res.json({ pergunta: proxFase1, fase: 1, candidatos: BANCO_TAMANHO() });
-    }
+    // Se é animação japonesa → pergunta sobre anime especificamente
+    if (sim('animacao') && !nao('anime')) pergs.push({id:'anime', txt:'É anime japonês?'});
+    else if (!sim('animacao')) pergs.push({id:'anime', txt:'É anime japonês?'});
 
-    // ============================================================
-    // FASE 2 — IA com contexto completo das 5 respostas base
-    // ============================================================
-    const candidatosTMDB = await buscarCandidatosTMDB(respostas || []);
+    // Gênero principal baseado no contexto
+    if (!sim('infantil')) pergs.push({id:'adulto', txt:'É voltado exclusivamente para adultos?'});
+    pergs.push({id:'fantasia', txt:'Tem elementos de fantasia ou magia?'});
+    pergs.push({id:'acao',     txt:'É de ação ou aventura?'});
     
-    if (!OR_KEY) {
-      // Sem IA: usa perguntas fixas restantes
-      const todas = [...PERGUNTAS_BASE, ...(lerPergs().perguntas||[])];
-      const proxima = todas.find(p => !feitas.has(p.id));
-      return res.json({ pergunta: proxima || null, fallback: true, candidatos: candidatosTMDB.length });
+    // Terror só se não for infantil
+    if (!sim('infantil')) pergs.push({id:'terror', txt:'É terror ou suspense psicológico?'});
+    else pergs.push({id:'comedia', txt:'É comédia com muito humor?'});
+
+    return pergs;
+  }
+
+  // ============================================================
+  // BLOCO 3 — 5 perguntas de CARACTERÍSTICAS
+  // ============================================================
+  function gerarBloco3(resps) {
+    const sim = id => resps.find(r => r.id === id && r.resposta >= 0.5);
+    const pergs = [];
+
+    pergs.push({id:'poderes',    txt:'O protagonista tem poderes especiais ou sobrenaturais?'});
+    pergs.push({id:'protmulher', txt:'A protagonista principal é mulher?'});
+    pergs.push({id:'maisdeuma',  txt:'Tem mais de uma temporada ou sequência?'});
+    
+    if (sim('fantasia') || sim('acao')) {
+      pergs.push({id:'superheroi', txt:'Tem super-heróis com traje ou fantasia?'});
+    } else {
+      pergs.push({id:'classico', txt:'É considerado um grande clássico?'});
     }
+    
+    pergs.push({id:'vilao', txt:'Tem um vilão muito marcante e famoso?'});
 
-    const historico = (respostas || []).map(r => 
-      `"${r.txt}" → ${r.resposta >= 0.5 ? 'SIM' : r.resposta <= -0.5 ? 'NÃO' : 'TALVEZ'}`
-    ).join('\n');
+    return pergs;
+  }
 
-    const listaCandidatos = candidatosTMDB.slice(0, 10)
-      .map(c => `- ${c.nome} (${c.tipo})`)
-      .join('\n');
+  // Verifica qual bloco está
+  const proxB1 = BLOCO1.find(p => !feitas.has(p.id));
+  if (proxB1) {
+    return res.json({ pergunta: proxB1, fase: 1, bloco: 'Tipo e Formato', num: BLOCO1.indexOf(proxB1)+1, total: 15 });
+  }
 
-    const prompt = `Você é o DarkiNator, gênio que adivinha filmes e séries.
+  const bloco2 = gerarBloco2(respostas || []);
+  const proxB2 = bloco2.find(p => !feitas.has(p.id));
+  if (proxB2) {
+    return res.json({ pergunta: proxB2, fase: 2, bloco: 'Gênero', num: 5+bloco2.indexOf(proxB2)+1, total: 15 });
+  }
 
-O jogador já respondeu essas perguntas base:
+  const bloco3 = gerarBloco3(respostas || []);
+  const proxB3 = bloco3.find(p => !feitas.has(p.id));
+  if (proxB3) {
+    return res.json({ pergunta: proxB3, fase: 3, bloco: 'Características', num: 10+bloco3.indexOf(proxB3)+1, total: 15 });
+  }
+
+  // ============================================================
+  // FASE IA — 15 perguntas inteligentes com fallback automático
+  // ============================================================
+  const candidatos = await buscarCandidatosTMDB(respostas || []);
+
+  const historico = (respostas || []).map(r =>
+    `"${r.txt}" → ${r.resposta >= 0.5 ? 'SIM' : r.resposta <= -0.5 ? 'NÃO' : 'TALVEZ'}`
+  ).join('
+');
+
+  const listaCandidatos = candidatos.slice(0, 8)
+    .map((c, i) => `${i+1}. ${c.nome} (${c.tipo})`)
+    .join('
+');
+
+  const prompt = `Você é o DarkiNator, gênio de adivinhação de filmes e séries.
+
+O jogador respondeu:
 ${historico}
 
-Com base nisso, os candidatos mais prováveis são:
-${listaCandidatos || 'Ainda analisando...'}
+Candidatos restantes (${candidatos.length}):
+${listaCandidatos || 'Analisando...'}
 
-Perguntas já feitas (NÃO repita): ${[...feitas].join(', ')}
+IDs JÁ USADOS — NUNCA repita estes: ${[...feitas].join(', ')}
 
-SUA TAREFA: Criar a pergunta SIM/NÃO MAIS INTELIGENTE que:
-1. Elimine metade dos candidatos de uma vez
-2. Seja lógica em relação às respostas anteriores
-3. Se poucos candidatos (${candidatosTMDB.length}), seja ultra específica sobre um deles
+Crie UMA pergunta SIM/NÃO que:
+- Seja COERENTE com as respostas acima (ex: se disse pós-2010, NÃO pergunte se é antes de 2000)
+- Elimine o máximo de candidatos
+- Se poucos candidatos, seja ultra específica (personagem, objeto, local icônico)
+- id único em snake_case, sem acentos
 
-EXEMPLOS DE BOAS PERGUNTAS:
-- "O protagonista tem poderes sobrenaturais?"
-- "A história se passa no espaço?"
-- "Tem dragões ou criaturas fantásticas?"
+JSON apenas:
+{"id":"id_unico","txt":"Pergunta coerente em português?"}`;
 
-Responda SOMENTE com JSON:
-{"id":"snake_case_sem_acentos","txt":"Pergunta clara em português?"}`;
+  // Tenta OpenRouter → fallback para outro endpoint gratuito
+  const tentativas = [
+    { url: 'https://openrouter.ai/api/v1/chat/completions', headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' }, body: { model: OR_MODEL, max_tokens: 100, messages: [{ role: 'user', content: prompt }] } },
+    { url: 'https://openrouter.ai/api/v1/chat/completions', headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' }, body: { model: 'meta-llama/llama-3.2-3b-instruct:free', max_tokens: 100, messages: [{ role: 'user', content: prompt }] } },
+  ];
 
-    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OR_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://darkinatror.up.railway.app'
-      },
-      body: JSON.stringify({ model: OR_MODEL, max_tokens: 100, messages: [{ role: 'user', content: prompt }] })
-    });
-
-    const rd = await resp.json();
-    const txt = rd.choices?.[0]?.message?.content || '';
-    const match = txt.match(/\{[\s\S]*?\}/);
-
-    if (match) {
-      const perg = JSON.parse(match[0]);
-      // Valida: id válido, não repetida, tem texto
-      if (perg.id && perg.txt && !feitas.has(perg.id) && /^[a-z0-9_]+$/.test(perg.id)) {
-        return res.json({ pergunta: perg, fase: 2, candidatos: candidatosTMDB.length });
+  for (const tent of tentativas) {
+    if (!OR_KEY) break;
+    try {
+      const r = await fetch(tent.url, { method: 'POST', headers: tent.headers, body: JSON.stringify(tent.body) });
+      const d = await r.json();
+      const txt = d.choices?.[0]?.message?.content || '';
+      const match = txt.match(/\{[\s\S]*?\}/);
+      if (match) {
+        const perg = JSON.parse(match[0]);
+        if (perg.id && perg.txt && !feitas.has(perg.id) && /^[a-z0-9_]+$/.test(perg.id)) {
+          return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
+        }
       }
-    }
-
-    // Fallback: perguntas fixas restantes
-    const todas = [...PERGUNTAS_BASE, ...(lerPergs().perguntas||[])];
-    const proxima = todas.find(p => !feitas.has(p.id));
-    res.json({ pergunta: proxima || null, fallback: true, candidatos: candidatosTMDB.length });
-
-  } catch(e) {
-    console.log('Erro jogo/pergunta:', e.message);
-    const feitas = new Set((respostas || []).map(r => r.id));
-    const proxima = PERGUNTAS_BASE.find(p => !feitas.has(p.id));
-    res.json({ pergunta: proxima || null, fallback: true, erro: e.message });
+    } catch(e) { console.log('IA tentativa falhou:', e.message); continue; }
   }
+
+  // Se todas as IAs falharam — retorna null para frontend mostrar animação de espera
+  res.json({ pergunta: null, aguardando: true, candidatos: candidatos.length });
 });
+
 
 // ============================================================
 // BUSCA CANDIDATOS NO TMDB BASEADO NAS RESPOSTAS
