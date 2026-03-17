@@ -716,251 +716,211 @@ async function iniciarJogo(){
   document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">PREPARANDO O GÊNIO...</div></div>`;
   await carregarBanco();
   if(BANCO.length===0){
-    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">Banco vazio!</div></div>`;
+    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">Erro ao carregar banco!</div></div>`;
     return;
   }
-
-  // Inicializa scores para todos os títulos
   jogo={
     idx:0,
-    scores:BANCO.map((_,i)=>({i,s:0})),
-    feitas:[],
+    respostas:[], // [{id, txt, resposta}]
     maxPergs:20,
-    extraPergs:0, // até +10 extras se necessário
-    fase:1 // 1=generica 2=semifocada 3=especifica
+    extras:0
   };
-  renderPerg();
+  await renderPerg();
 }
 
-// ============================================================
-// SISTEMA DE FASES — Genérico → Semifocado → Específico
-// ============================================================
+async function renderPerg(){
+  const limite = jogo.maxPergs + jogo.extras;
 
-function candidatosAtivos(){
-  // Retorna títulos com score acima do threshold dinâmico
-  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
-  const lider=top[0]?.s||0;
-  if(lider<=0) return jogo.scores.map(s=>s.i); // ainda no início
-  // Considera candidatos com pelo menos 40% do score do líder
-  const threshold=lider*0.4;
-  return top.filter(s=>s.s>=threshold).map(s=>s.i);
-}
-
-function detectarFase(){
-  const ativos=candidatosAtivos();
-  if(jogo.idx<5) return 1; // fase genérica obrigatória nas primeiras 5
-  if(ativos.length<=5) return 3; // poucos candidatos = perguntas ultra específicas
-  if(ativos.length<=15) return 2; // campo médio = semifocado
-  return 1; // ainda muitos candidatos = genérico
-}
-
-function pergMelhorParaFase(){
-  const fase=detectarFase();
-  jogo.fase=fase;
-  const ativos=candidatosAtivos();
-  const pergsDinamicas=PERGUNTAS.filter(p=>p.titulo); // tem campo titulo = é dinâmica
-  const pergsFixas=PERGUNTAS.filter(p=>!p.titulo);
-  const naoFeitas=id=>!jogo.feitas.includes(id);
-
-  if(fase===3){
-    // FASE ESPECÍFICA: prioriza perguntas dinâmicas dos candidatos ativos
-    const nomesCandidatos=ativos.map(i=>BANCO[i]?.nome).filter(Boolean);
-    
-    // Perguntas geradas especificamente para os candidatos restantes
-    const especificas=pergsDinamicas.filter(p=>
-      naoFeitas(p.id) && nomesCandidatos.includes(p.titulo)
-    );
-    if(especificas.length>0){
-      // Pega a que mais diferencia os candidatos
-      return melhorDiscriminante(especificas, ativos);
+  // Verifica confiança antes de perguntar mais
+  if(jogo.idx >= 5){
+    const confianca = calcularConfiancaLocal();
+    if(confianca >= 90 || jogo.idx >= limite){
+      await mostrarResultado();
+      return;
     }
-    // Se não tem dinâmicas, usa fixas mais discriminantes
-    return melhorDiscriminante(pergsFixas.filter(p=>naoFeitas(p.id)), ativos);
-  }
-
-  if(fase===2){
-    // FASE SEMI: mistura 60% dinâmicas + 40% fixas
-    const dinamicasDisponiveis=pergsDinamicas.filter(p=>naoFeitas(p.id));
-    const fixasDisponiveis=pergsFixas.filter(p=>naoFeitas(p.id));
-    
-    // Alterna entre dinâmica e fixa
-    const usarDinamica=(jogo.idx%5)<3 && dinamicasDisponiveis.length>0;
-    const pool=usarDinamica?dinamicasDisponiveis:fixasDisponiveis;
-    return melhorDiscriminante(pool.length>0?pool:fixasDisponiveis, ativos);
-  }
-
-  // FASE GENÉRICA: só perguntas fixas, mais discriminantes globalmente
-  const fixasDisponiveis=pergsFixas.filter(p=>naoFeitas(p.id));
-  return melhorDiscriminanteGlobal(fixasDisponiveis);
-}
-
-function melhorDiscriminante(pergs, candidatos){
-  if(!pergs||pergs.length===0) return null;
-  let melhor=null, melhorEq=-1;
-  for(const pg of pergs){
-    let sim=0,nao=0;
-    for(const i of candidatos){
-      const p=BANCO[i]?.tags?.[pg.id]||0;
-      if(p>0)sim++;else if(p<0)nao++;
-    }
-    const total=candidatos.length;
-    // Quanto mais perto de 50/50 entre os candidatos, melhor discrimina
-    const eq=total-Math.abs(sim-nao);
-    if(eq>melhorEq){melhorEq=eq;melhor=pg;}
-  }
-  return melhor||pergs[0];
-}
-
-function melhorDiscriminanteGlobal(pergs){
-  if(!pergs||pergs.length===0) return null;
-  let melhor=null, melhorEq=-1;
-  for(const pg of pergs){
-    let sim=0,nao=0;
-    for(const sc of jogo.scores){
-      const p=BANCO[sc.i]?.tags?.[pg.id]||0;
-      if(p>0)sim++;else if(p<0)nao++;
-    }
-    const eq=jogo.scores.length-Math.abs(sim-nao);
-    if(eq>melhorEq){melhorEq=eq;melhor=pg;}
-  }
-  return melhor||pergs[0];
-}
-
-function verificarConfianca(){
-  if(jogo.idx<4) return false;
-  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
-  const diff=top[0].s-(top[1]?.s||0);
-  // Confiança alta se líder está muito à frente
-  return diff>=5 && top[0].s>=3;
-}
-
-function renderPerg(){
-  const limiteTotal=jogo.maxPergs+jogo.extraPergs;
-  
-  if(jogo.idx>=limiteTotal||verificarConfianca()){
-    mostrarResultado();return;
-  }
-  
-  // Se chegou no limite de 20 mas não tem certeza, pode dar +10
-  if(jogo.idx>=jogo.maxPergs && jogo.extraPergs===0){
-    const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
-    const diff=top[0].s-(top[1]?.s||0);
-    if(diff<3){
-      jogo.extraPergs=10; // libera mais 10 perguntas
-    } else {
-      mostrarResultado();return;
+    // Libera +10 perguntas se ainda não tem certeza
+    if(jogo.idx >= jogo.maxPergs && jogo.extras === 0){
+      jogo.extras = 10;
     }
   }
 
-  const pg=pergMelhorParaFase();
-  if(!pg){mostrarResultado();return;}
-
-  const limiteVis=jogo.maxPergs+jogo.extraPergs;
-  const prog=Math.round((jogo.idx/limiteVis)*100);
-  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
-  const ativos=candidatosAtivos();
-  const confianca=jogo.idx>=4?Math.min(99,Math.round(45+top[0].s*7)):0;
-  const faseLabel=['','🌐 Fase Genérica','🎯 Semifocado','🔬 Ultra Específico'][jogo.fase||1];
-
+  // Mostra spinner enquanto IA pensa
   document.getElementById('jogarConteudo').innerHTML=`
-    <div class="jogo-topo">
-      <h2>🔮 Estou Pensando...</h2>
-      <p>${jogo.idx>=4&&confianca>65?`Tenho ${confianca}% de certeza...`:faseLabel+' · '+ativos.length+' candidatos'}</p>
-    </div>
-    <div class="barra-prog">
-      <div class="barra-info"><span>PERGUNTA ${jogo.idx+1}${jogo.extraPergs>0?' (EXTRA)':''}</span><span>${prog}%</span></div>
-      <div class="barra"><div class="barra-fill" style="width:${prog}%"></div></div>
-    </div>
-    <div class="pergunta-card">
-      <div class="perg-num">${jogo.fase===3?'🔬 ESPECÍFICA':jogo.fase===2?'🎯 FOCADA':'🌐 GERAL'} · QUESTÃO ${jogo.idx+1}</div>
-      <div class="perg-txt">${pg.txt}</div>
-    </div>
-    <div class="ops">
-      <button class="op" onclick="resp('${pg.id}',1)"><span class="op-ico">✅</span>SIM, com certeza</button>
-      <button class="op" onclick="resp('${pg.id}',.5)"><span class="op-ico">🟡</span>Provavelmente sim</button>
-      <button class="op" onclick="resp('${pg.id}',0)"><span class="op-ico">🤔</span>Não sei / Talvez</button>
-      <button class="op" onclick="resp('${pg.id}',-.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
-      <button class="op" onclick="resp('${pg.id}',-1)"><span class="op-ico">❌</span>NÃO, com certeza</button>
-    </div>
-    ${confianca>=85?`<div style="margin-top:12px;text-align:center"><button onclick="mostrarResultado()" style="background:none;border:1px solid #a855f7;color:#a855f7;padding:10px 20px;border-radius:10px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer">🔮 JÁ SEI! REVELAR AGORA</button></div>`:''}`;
+    <div class="pensando">
+      <div class="spinner"></div>
+      <div class="pensando-txt">O GÊNIO ESTÁ PENSANDO...</div>
+      <div style="font-size:11px;color:#64748b;margin-top:8px">Pergunta ${jogo.idx+1}${jogo.extras>0?' (extra)':''}</div>
+    </div>`;
+
+  try {
+    // Busca próxima pergunta via IA
+    const r = await fetch('/api/jogo/pergunta', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ respostas: jogo.respostas })
+    });
+    const d = await r.json();
+    const pg = d.pergunta;
+    const numCandidatos = d.candidatos || BANCO.length;
+
+    if(!pg){
+      await mostrarResultado();
+      return;
+    }
+
+    const prog = Math.round((jogo.idx / (jogo.maxPergs+jogo.extras)) * 100);
+    const confianca = jogo.idx >= 3 ? calcularConfiancaLocal() : 0;
+    const faseLabel = numCandidatos <= 3 ? '🔬 Ultra Específico' : numCandidatos <= 10 ? '🎯 Focado' : '🌐 Analisando';
+
+    document.getElementById('jogarConteudo').innerHTML=`
+      <div class="jogo-topo">
+        <h2>🔮 Estou Pensando...</h2>
+        <p>${confianca >= 70 ? `Tenho ${confianca}% de certeza...` : faseLabel + ' · ' + numCandidatos + ' candidatos'}</p>
+      </div>
+      <div class="barra-prog">
+        <div class="barra-info"><span>PERGUNTA ${jogo.idx+1}${jogo.extras>0?' (EXTRA)':''}</span><span>${prog}%</span></div>
+        <div class="barra"><div class="barra-fill" style="width:${prog}%"></div></div>
+      </div>
+      <div class="pergunta-card">
+        <div class="perg-num">${faseLabel} · QUESTÃO ${jogo.idx+1}</div>
+        <div class="perg-txt">${pg.txt}</div>
+      </div>
+      <div class="ops">
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',1)"><span class="op-ico">✅</span>SIM, com certeza</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0.5)"><span class="op-ico">🟡</span>Provavelmente sim</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0)"><span class="op-ico">🤔</span>Não sei / Talvez</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -0.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -1)"><span class="op-ico">❌</span>NÃO, com certeza</button>
+      </div>
+      ${confianca>=85?`<div style="margin-top:12px;text-align:center"><button onclick="mostrarResultado()" style="background:none;border:1px solid #a855f7;color:#a855f7;padding:10px 20px;border-radius:10px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer">🔮 JÁ SEI! REVELAR</button></div>`:''}`;
+
+  } catch(e) {
+    // Fallback se API falhar
+    console.log('Erro pergunta IA, usando fallback:', e.message);
+    const feitas = new Set(jogo.respostas.map(r=>r.id));
+    const pg = PERGUNTAS.find(p=>!feitas.has(p.id));
+    if(!pg){ await mostrarResultado(); return; }
+    document.getElementById('jogarConteudo').innerHTML=`
+      <div class="pergunta-card" style="margin:20px 16px">
+        <div class="perg-num">🌐 QUESTÃO ${jogo.idx+1}</div>
+        <div class="perg-txt">${pg.txt}</div>
+      </div>
+      <div class="ops">
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',1)"><span class="op-ico">✅</span>SIM</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0.5)"><span class="op-ico">🟡</span>Provavelmente sim</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0)"><span class="op-ico">🤔</span>Talvez</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -0.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -1)"><span class="op-ico">❌</span>NÃO</button>
+      </div>`;
+  }
 }
 
-function resp(pgId,val){
-  jogo.feitas.push(pgId);
-  const pergDinamica=PERGUNTAS.find(p=>p.id===pgId&&p.titulo);
-  const fase=jogo.fase||1;
-  // Peso por fase: específica=3x, semifocada=2x, genérica=1x
-  const pesoFase=fase===3?3:fase===2?2:1;
-
-  for(const sc of jogo.scores){
-    const tags=BANCO[sc.i]?.tags||{};
-    const p=tags[pgId]||0;
-    if(p===0) continue; // neutro não conta
-    // Bônus se a pergunta foi gerada para este título específico
-    const bonusTitulo=(pergDinamica&&pergDinamica.titulo===BANCO[sc.i]?.nome)?2:1;
-    sc.s+=p*val*pesoFase*bonusTitulo;
+function calcularConfiancaLocal(){
+  if(jogo.respostas.length < 3) return 0;
+  // Calcula scores locais para estimar confiança
+  const scores = BANCO.map((t,i)=>({i,s:0}));
+  for(const r of jogo.respostas){
+    for(const sc of scores){
+      const p = BANCO[sc.i]?.tags?.[r.id]||0;
+      sc.s += p * r.resposta;
+    }
   }
+  scores.sort((a,b)=>b.s-a.s);
+  const diff = scores[0].s - (scores[1]?.s||0);
+  return Math.min(99, Math.round(40 + diff*10));
+}
+
+async function resp(pgId, pgTxt, val){
+  jogo.respostas.push({ id:pgId, txt:pgTxt, resposta:val });
   jogo.idx++;
-  document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">ANALISANDO...</div></div>`;
-  setTimeout(renderPerg,350);
+  await renderPerg();
 }
 
 async function mostrarResultado(){
-  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
-  const filme=BANCO[top[0].i];
+  document.getElementById('jogarConteudo').innerHTML=`<div class="loading"><div class="spinner"></div><div class="loading-txt">CONSULTANDO AS SOMBRAS...</div></div>`;
+
+  let filme = null;
+
+  try {
+    // Usa IA + TMDB para revelar o título
+    const r = await fetch('/api/jogo/revelar', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ respostas: jogo.respostas })
+    });
+    const d = await r.json();
+    filme = d.titulo;
+  } catch(e) {
+    console.log('Revelar falhou, usando banco local:', e.message);
+  }
+
+  // Fallback: banco local
   if(!filme){
-    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">BANCO VAZIO! ADICIONE TÍTULOS.</div></div>`;
+    const scores = BANCO.map((_,i)=>({i,s:0}));
+    for(const r of jogo.respostas){
+      for(const sc of scores){
+        const p = BANCO[sc.i]?.tags?.[r.id]||0;
+        sc.s += p * r.resposta;
+      }
+    }
+    scores.sort((a,b)=>b.s-a.s);
+    filme = BANCO[scores[0]?.i];
+  }
+
+  if(!filme){
+    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">Não consegui adivinhar desta vez!</div></div>`;
     return;
   }
 
-  document.getElementById('jogarConteudo').innerHTML=`<div class="loading"><div class="spinner"></div><div class="loading-txt">CONSULTANDO AS SOMBRAS...</div></div>`;
-  // Salva referência ao título para busca de música
+  // Salva referência para música
   jogo.tituloAtual = filme;
 
   let medIco,medCor,medNome,pts;
-  if(filme.raridade==='raro'){medIco='🥇';medCor='#f59e0b';medNome='OURO — Título Raro!';pts=300;}
-  else if(filme.raridade==='medio'){medIco='🥈';medCor='#94a3b8';medNome='PRATA — Médio';pts=150;}
+  const raridade = filme.raridade || 'medio';
+  if(raridade==='raro'){medIco='🥇';medCor='#f59e0b';medNome='OURO — Título Raro!';pts=300;}
+  else if(raridade==='medio'){medIco='🥈';medCor='#94a3b8';medNome='PRATA — Médio';pts=150;}
   else{medIco='🥉';medCor='#b45309';medNome='BRONZE — Comum';pts=50;}
+
+  const certeza = filme.certeza || 75;
 
   let comsHtml='<div style="color:#64748b;font-size:13px;padding:8px 0">Seja o primeiro a comentar!</div>';
   try{
-    const cr=await fetch(`/api/comentarios/${filme.id}`);
+    const cr=await fetch(`/api/comentarios/${filme.id||filme.tmdb}`);
     const cd=await cr.json();
     if(cd.length)comsHtml=cd.map(c=>`
       <div class="com"><img class="com-av" src="${AVS[c.avatarIdx||0]}">
       <div class="com-balao"><div class="com-nick">@${c.username}</div><div class="com-texto">${c.texto}</div></div></div>`).join('');
   }catch{}
 
-  const ytId=filme.yt;
-  const ytQuery=encodeURIComponent(filme.nome+' trilha sonora oficial');
+  const tituloId = filme.id || ('tmdb_'+filme.tmdb);
+  const nomeOrig = encodeURIComponent(filme.nomeOriginal || filme.nome);
 
   document.getElementById('jogarConteudo').innerHTML=`
     <div class="barra-prog" style="margin-top:8px">
-      <div class="barra-info"><span>RESULTADO FINAL</span><span>100%</span></div>
+      <div class="barra-info"><span>RESULTADO FINAL</span><span>${certeza}% certeza</span></div>
       <div class="barra"><div class="barra-fill" style="width:100%"></div></div>
     </div>
     <div class="resultado-card">
-      ${filme.capa?`<img class="res-capa" src="${filme.capa}" onerror="this.src='';this.outerHTML='<div class=res-capa-ph>🎬</div>'">`:`<div class="res-capa-ph">🎬</div>`}
+      ${filme.capa?`<img class="res-capa" src="${filme.capa}" onerror="this.outerHTML='<div class=res-capa-ph>🎬</div>'">`:`<div class="res-capa-ph">🎬</div>`}
       <div class="res-corpo">
         <div class="res-label">🔮 O GÊNIO REVELA...</div>
         <div class="res-nome">${filme.nome}</div>
         <div class="res-meta">
           <span class="badge">${filme.tipo==='movie'?'FILME':'SÉRIE'}</span>
-          <span class="badge" style="color:${medCor};border-color:${medCor}">${filme.raridade.toUpperCase()}</span>
+          <span class="badge" style="color:${medCor};border-color:${medCor}">${raridade.toUpperCase()}</span>
+          <span class="badge" style="color:#10b981;border-color:#10b981">${certeza}% certeza</span>
         </div>
         <div class="res-sinopse">${filme.sinopse||'Uma obra inesquecível.'}</div>
 
         <div class="player">
           <div class="player-topo">
-            <button class="play-btn" id="playBt" onclick="tocarMusica('${filme.nome}')">▶</button>
+            <button class="play-btn" id="playBt" onclick="tocarMusica('${filme.nome}','${nomeOrig}')">▶</button>
             <div class="player-info">
               <div class="player-nome">🎵 Trilha — ${filme.nome}</div>
               <div class="player-fonte" id="pFonte">Clique para ouvir</div>
             </div>
           </div>
-          <div id="scPlayer" style="margin:0 14px 12px;border-radius:10px;overflow:hidden;display:none">
-            <iframe id="scFrame" style="width:100%;height:166px;border:none" scrolling="no" frameborder="no" allow="autoplay"></iframe>
-          </div>
+          <div id="scPlayer" style="margin:0 14px 12px;border-radius:10px;overflow:hidden;display:none"></div>
         </div>
 
         <div class="medalha">
@@ -973,7 +933,7 @@ async function mostrarResultado(){
         </div>
 
         <div class="btns-resultado">
-          <button class="btn-sim" onclick="confirmarAcerto('${filme.id}','${filme.nome}','${filme.raridade}',${pts},'${filme.capa||''}')">✅ ACERTOU!</button>
+          <button class="btn-sim" onclick="confirmarAcerto('${tituloId}','${filme.nome}','${raridade}',${pts},'${filme.capa||''}')">✅ ACERTOU!</button>
           <button class="btn-nao" onclick="abrirSugerir()">❌ ERROU</button>
         </div>
         <button class="btn-novojogo" onclick="iniciarJogo()">🔮 JOGAR NOVAMENTE</button>
@@ -983,7 +943,7 @@ async function mostrarResultado(){
           <div class="coms-lista" id="comsLista">${comsHtml}</div>
           <div class="com-linha">
             <input class="com-inp" id="comInp" placeholder="Comente sobre ${filme.nome}...">
-            <button class="com-enviar" onclick="enviarCom('${filme.id}')">→</button>
+            <button class="com-enviar" onclick="enviarCom('${tituloId}')">→</button>
           </div>
         </div>
       </div>
@@ -993,20 +953,19 @@ async function mostrarResultado(){
     USER.pontos=(USER.pontos||0)+pts;
     USER.jogos=(USER.jogos||0)+1;
     salvarSessao(USER);
-    try{await fetch('/api/resultado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER.username,tituloId:filme.id,nome:filme.nome,raridade:filme.raridade,pontos:pts,capa:filme.capa||'',acertou:false})});}catch{}
+    try{await fetch('/api/resultado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER.username,tituloId,nome:filme.nome,raridade,pontos:pts,capa:filme.capa||'',acertou:false})});}catch{}
   }
+
+  // Recarrega banco para incluir título auto-adicionado
+  setTimeout(()=>carregarBanco(),2000);
 }
 
-// ============================================================
-// MÚSICA — YouTube IFrame fixo
-// ============================================================
-let musicaOn=false;
-function tocarMusica(nomeTitulo){
+
+function tocarMusica(nomeTitulo, nomeOrigEnc){
   const fonte=document.getElementById('pFonte');
   const btn=document.getElementById('playBt');
   const scPlayer=document.getElementById('scPlayer');
 
-  // Toggle off
   if(scPlayer.style.display==='block'){
     const au=document.getElementById('audioPreview');
     if(au)au.pause();
@@ -1020,8 +979,7 @@ function tocarMusica(nomeTitulo){
   btn.textContent='⏳';
   fonte.textContent='Buscando trilha...';
 
-  // Busca pelo nosso backend — usa nome original para melhor match
-  const nomeOrig = jogo?.tituloAtual?.nomeOriginal || nomeTitulo;
+  const nomeOrig = nomeOrigEnc ? decodeURIComponent(nomeOrigEnc) : nomeTitulo;
   fetch(`/api/musica?q=${encodeURIComponent(nomeTitulo)}&original=${encodeURIComponent(nomeOrig)}`)
     .then(r=>r.json())
     .then(d=>{
