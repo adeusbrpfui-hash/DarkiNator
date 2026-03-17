@@ -1067,20 +1067,37 @@ function fecharSugerir(){document.getElementById('modalSugerir').classList.add('
 async function enviarSugestao(){
   const nome=document.getElementById('sugerirInp').value.trim();
   if(!nome){document.getElementById('sugerirMsg').textContent='Digite o nome!';document.getElementById('sugerirMsg').style.color='#ef4444';return;}
+  const btn=document.querySelector('#modalSugerir button:last-child');
+  if(btn){btn.disabled=true;btn.textContent='ENVIANDO...';}
   try{
     const r=await fetch('/api/sugerir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,username:USER?.username||'anon'})});
     const d=await r.json();
-    document.getElementById('sugerirMsg').textContent=d.msg||d.erro||'Enviado!';
-    document.getElementById('sugerirMsg').style.color=d.sucesso?'#10b981':'#ef4444';
     if(d.sucesso){
-      // Aguarda 3s e recarrega o banco para incluir o novo título
-      setTimeout(async()=>{
-        fecharSugerir();
+      document.getElementById('sugerirMsg').textContent='✅ Recebido! Adicionando ao banco...';
+      document.getElementById('sugerirMsg').style.color='#10b981';
+      // Polling — verifica a cada 3s se o título foi adicionado (máx 30s)
+      let tentativas=0;
+      const totalAntes=BANCO.length;
+      const poll=setInterval(async()=>{
+        tentativas++;
         await carregarBanco();
-        notif(`✅ "${nome}" adicionado! ${BANCO.length} títulos no banco.`,'#10b981');
+        const novoTotal=BANCO.length;
+        if(novoTotal>totalAntes||tentativas>=10){
+          clearInterval(poll);
+          fecharSugerir();
+          if(btn){btn.disabled=false;btn.textContent='ENVIAR PARA PROCESSAMENTO';}
+          notif(novoTotal>totalAntes?`✅ "${nome}" adicionado! ${novoTotal} títulos`:`🔄 "${nome}" em processamento...`,'#10b981');
+        }
       },3000);
+    } else {
+      document.getElementById('sugerirMsg').textContent=d.erro||'Erro!';
+      document.getElementById('sugerirMsg').style.color='#ef4444';
+      if(btn){btn.disabled=false;btn.textContent='ENVIAR PARA PROCESSAMENTO';}
     }
-  }catch{document.getElementById('sugerirMsg').textContent='Erro de conexão!';}
+  }catch{
+    document.getElementById('sugerirMsg').textContent='Erro de conexão!';
+    if(btn){btn.disabled=false;btn.textContent='ENVIAR PARA PROCESSAMENTO';}
+  }
 }
 
 async function enviarCom(tituloId){
