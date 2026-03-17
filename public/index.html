@@ -713,27 +713,108 @@ function irTela(id){
 // JOGO — SISTEMA DE PONTUAÇÃO POR PESO
 // ============================================================
 async function iniciarJogo(){
-  // Sempre recarrega banco e perguntas antes de jogar — pega dinâmicas novas
   document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">PREPARANDO O GÊNIO...</div></div>`;
   await carregarBanco();
   if(BANCO.length===0){
     document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">Banco vazio!</div></div>`;
     return;
   }
+
+  // Inicializa scores para todos os títulos
   jogo={
     idx:0,
     scores:BANCO.map((_,i)=>({i,s:0})),
     feitas:[],
-    maxPergs:Math.min(20,PERGUNTAS.length),
-    confiancaAlta:false
+    maxPergs:20,
+    extraPergs:0, // até +10 extras se necessário
+    fase:1 // 1=generica 2=semifocada 3=especifica
   };
   renderPerg();
 }
 
-function pergMaisDiscriminante(){
-  let melhor=null,melhorEq=-1;
-  for(const pg of PERGUNTAS){
-    if(jogo.feitas.includes(pg.id))continue;
+// ============================================================
+// SISTEMA DE FASES — Genérico → Semifocado → Específico
+// ============================================================
+
+function candidatosAtivos(){
+  // Retorna títulos com score acima do threshold dinâmico
+  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
+  const lider=top[0]?.s||0;
+  if(lider<=0) return jogo.scores.map(s=>s.i); // ainda no início
+  // Considera candidatos com pelo menos 40% do score do líder
+  const threshold=lider*0.4;
+  return top.filter(s=>s.s>=threshold).map(s=>s.i);
+}
+
+function detectarFase(){
+  const ativos=candidatosAtivos();
+  if(jogo.idx<5) return 1; // fase genérica obrigatória nas primeiras 5
+  if(ativos.length<=5) return 3; // poucos candidatos = perguntas ultra específicas
+  if(ativos.length<=15) return 2; // campo médio = semifocado
+  return 1; // ainda muitos candidatos = genérico
+}
+
+function pergMelhorParaFase(){
+  const fase=detectarFase();
+  jogo.fase=fase;
+  const ativos=candidatosAtivos();
+  const pergsDinamicas=PERGUNTAS.filter(p=>p.titulo); // tem campo titulo = é dinâmica
+  const pergsFixas=PERGUNTAS.filter(p=>!p.titulo);
+  const naoFeitas=id=>!jogo.feitas.includes(id);
+
+  if(fase===3){
+    // FASE ESPECÍFICA: prioriza perguntas dinâmicas dos candidatos ativos
+    const nomesCandidatos=ativos.map(i=>BANCO[i]?.nome).filter(Boolean);
+    
+    // Perguntas geradas especificamente para os candidatos restantes
+    const especificas=pergsDinamicas.filter(p=>
+      naoFeitas(p.id) && nomesCandidatos.includes(p.titulo)
+    );
+    if(especificas.length>0){
+      // Pega a que mais diferencia os candidatos
+      return melhorDiscriminante(especificas, ativos);
+    }
+    // Se não tem dinâmicas, usa fixas mais discriminantes
+    return melhorDiscriminante(pergsFixas.filter(p=>naoFeitas(p.id)), ativos);
+  }
+
+  if(fase===2){
+    // FASE SEMI: mistura 60% dinâmicas + 40% fixas
+    const dinamicasDisponiveis=pergsDinamicas.filter(p=>naoFeitas(p.id));
+    const fixasDisponiveis=pergsFixas.filter(p=>naoFeitas(p.id));
+    
+    // Alterna entre dinâmica e fixa
+    const usarDinamica=(jogo.idx%5)<3 && dinamicasDisponiveis.length>0;
+    const pool=usarDinamica?dinamicasDisponiveis:fixasDisponiveis;
+    return melhorDiscriminante(pool.length>0?pool:fixasDisponiveis, ativos);
+  }
+
+  // FASE GENÉRICA: só perguntas fixas, mais discriminantes globalmente
+  const fixasDisponiveis=pergsFixas.filter(p=>naoFeitas(p.id));
+  return melhorDiscriminanteGlobal(fixasDisponiveis);
+}
+
+function melhorDiscriminante(pergs, candidatos){
+  if(!pergs||pergs.length===0) return null;
+  let melhor=null, melhorEq=-1;
+  for(const pg of pergs){
+    let sim=0,nao=0;
+    for(const i of candidatos){
+      const p=BANCO[i]?.tags?.[pg.id]||0;
+      if(p>0)sim++;else if(p<0)nao++;
+    }
+    const total=candidatos.length;
+    // Quanto mais perto de 50/50 entre os candidatos, melhor discrimina
+    const eq=total-Math.abs(sim-nao);
+    if(eq>melhorEq){melhorEq=eq;melhor=pg;}
+  }
+  return melhor||pergs[0];
+}
+
+function melhorDiscriminanteGlobal(pergs){
+  if(!pergs||pergs.length===0) return null;
+  let melhor=null, melhorEq=-1;
+  for(const pg of pergs){
     let sim=0,nao=0;
     for(const sc of jogo.scores){
       const p=BANCO[sc.i]?.tags?.[pg.id]||0;
@@ -742,40 +823,56 @@ function pergMaisDiscriminante(){
     const eq=jogo.scores.length-Math.abs(sim-nao);
     if(eq>melhorEq){melhorEq=eq;melhor=pg;}
   }
-  return melhor||PERGUNTAS.find(p=>!jogo.feitas.includes(p.id));
+  return melhor||pergs[0];
 }
 
 function verificarConfianca(){
-  if(jogo.idx<5)return false;
+  if(jogo.idx<4) return false;
   const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
   const diff=top[0].s-(top[1]?.s||0);
-  // Chuta cedo se diferença for grande o suficiente
-  return diff>=4;
+  // Confiança alta se líder está muito à frente
+  return diff>=5 && top[0].s>=3;
 }
 
 function renderPerg(){
-  // Verifica se pode chutar antes das 20 perguntas
-  if(jogo.idx>=jogo.maxPergs||verificarConfianca()){
+  const limiteTotal=jogo.maxPergs+jogo.extraPergs;
+  
+  if(jogo.idx>=limiteTotal||verificarConfianca()){
     mostrarResultado();return;
   }
-  const pg=pergMaisDiscriminante();
+  
+  // Se chegou no limite de 20 mas não tem certeza, pode dar +10
+  if(jogo.idx>=jogo.maxPergs && jogo.extraPergs===0){
+    const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
+    const diff=top[0].s-(top[1]?.s||0);
+    if(diff<3){
+      jogo.extraPergs=10; // libera mais 10 perguntas
+    } else {
+      mostrarResultado();return;
+    }
+  }
+
+  const pg=pergMelhorParaFase();
   if(!pg){mostrarResultado();return;}
-  const prog=Math.round((jogo.idx/jogo.maxPergs)*100);
+
+  const limiteVis=jogo.maxPergs+jogo.extraPergs;
+  const prog=Math.round((jogo.idx/limiteVis)*100);
   const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
-  const lider=BANCO[top[0].i];
-  const confianca=jogo.idx>=3?Math.min(99,Math.round(50+top[0].s*8)):0;
+  const ativos=candidatosAtivos();
+  const confianca=jogo.idx>=4?Math.min(99,Math.round(45+top[0].s*7)):0;
+  const faseLabel=['','🌐 Fase Genérica','🎯 Semifocado','🔬 Ultra Específico'][jogo.fase||1];
 
   document.getElementById('jogarConteudo').innerHTML=`
     <div class="jogo-topo">
       <h2>🔮 Estou Pensando...</h2>
-      <p>${jogo.idx>=3&&confianca>60?`Acho que sei... ${confianca}% de certeza`:'Responda com sinceridade para melhores resultados.'}</p>
+      <p>${jogo.idx>=4&&confianca>65?`Tenho ${confianca}% de certeza...`:faseLabel+' · '+ativos.length+' candidatos'}</p>
     </div>
     <div class="barra-prog">
-      <div class="barra-info"><span>PERGUNTA ${jogo.idx+1} DE ${jogo.maxPergs}</span><span>${prog}%</span></div>
+      <div class="barra-info"><span>PERGUNTA ${jogo.idx+1}${jogo.extraPergs>0?' (EXTRA)':''}</span><span>${prog}%</span></div>
       <div class="barra"><div class="barra-fill" style="width:${prog}%"></div></div>
     </div>
     <div class="pergunta-card">
-      <div class="perg-num">QUESTÃO ${jogo.idx+1}</div>
+      <div class="perg-num">${jogo.fase===3?'🔬 ESPECÍFICA':jogo.fase===2?'🎯 FOCADA':'🌐 GERAL'} · QUESTÃO ${jogo.idx+1}</div>
       <div class="perg-txt">${pg.txt}</div>
     </div>
     <div class="ops">
@@ -785,30 +882,29 @@ function renderPerg(){
       <button class="op" onclick="resp('${pg.id}',-.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
       <button class="op" onclick="resp('${pg.id}',-1)"><span class="op-ico">❌</span>NÃO, com certeza</button>
     </div>
-    ${jogo.idx>=3&&confianca>80?`<div style="margin-top:12px;text-align:center"><button onclick="mostrarResultado()" style="background:none;border:1px solid #a855f7;color:#a855f7;padding:10px 20px;border-radius:10px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer">🔮 JÁ SEI A RESPOSTA!</button></div>`:''}`;
+    ${confianca>=85?`<div style="margin-top:12px;text-align:center"><button onclick="mostrarResultado()" style="background:none;border:1px solid #a855f7;color:#a855f7;padding:10px 20px;border-radius:10px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer">🔮 JÁ SEI! REVELAR AGORA</button></div>`:''}`;
 }
 
 function resp(pgId,val){
   jogo.feitas.push(pgId);
-  // Verifica se é pergunta dinâmica (mais específica = mais peso)
-  const pergDinamica = PERGUNTAS.find(p=>p.id===pgId&&p.titulo);
-  const multiplicador = pergDinamica ? 2.0 : 1.0; // perguntas específicas valem 2x
-  
+  const pergDinamica=PERGUNTAS.find(p=>p.id===pgId&&p.titulo);
+  const fase=jogo.fase||1;
+  // Peso por fase: específica=3x, semifocada=2x, genérica=1x
+  const pesoFase=fase===3?3:fase===2?2:1;
+
   for(const sc of jogo.scores){
     const tags=BANCO[sc.i]?.tags||{};
     const p=tags[pgId]||0;
-    // Bônus extra se a pergunta foi gerada especificamente para este título
-    const bonus = (pergDinamica && pergDinamica.titulo === BANCO[sc.i]?.nome) ? 1.5 : 1.0;
-    sc.s+=p*val*multiplicador*bonus;
+    if(p===0) continue; // neutro não conta
+    // Bônus se a pergunta foi gerada para este título específico
+    const bonusTitulo=(pergDinamica&&pergDinamica.titulo===BANCO[sc.i]?.nome)?2:1;
+    sc.s+=p*val*pesoFase*bonusTitulo;
   }
   jogo.idx++;
   document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">ANALISANDO...</div></div>`;
-  setTimeout(renderPerg,400);
+  setTimeout(renderPerg,350);
 }
 
-// ============================================================
-// RESULTADO
-// ============================================================
 async function mostrarResultado(){
   const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
   const filme=BANCO[top[0].i];
