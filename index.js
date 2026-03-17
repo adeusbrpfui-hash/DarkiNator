@@ -431,11 +431,12 @@ app.post('/api/jogo/pergunta', async (req, res) => {
       const r = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' },
-        body: JSON.stringify({ model: modelo, max_tokens: 100, messages: [{ role: 'user', content: prompt }] })
-      }, 8000);
+        body: JSON.stringify({ model: modelo, max_tokens: 80, messages: [{ role: 'user', content: prompt }] })
+      }, 15000);
       
       const d = await r.json();
       const txt = d.choices?.[0]?.message?.content || '';
+      console.log('[IA] Modelo:', modelo, '| Status:', r.status, '| Resposta bruta:', txt.slice(0,150));
       const match = txt.match(/\{[\s\S]*?\}/);
       if (match) {
         const perg = JSON.parse(match[0]);
