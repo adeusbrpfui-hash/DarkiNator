@@ -769,8 +769,9 @@ async function renderPerg(){
     }
 
     const prog = Math.round((jogo.idx / (jogo.maxPergs+jogo.extras)) * 100);
-    const confianca = jogo.idx >= 3 ? calcularConfiancaLocal() : 0;
-    const faseLabel = numCandidatos <= 3 ? '🔬 Ultra Específico' : numCandidatos <= 10 ? '🎯 Focado' : '🌐 Analisando';
+    const confianca = jogo.idx >= 5 ? calcularConfiancaLocal() : 0;
+    const fase = d.fase || 2;
+    const faseLabel = fase===1 ? '📋 Base (' + (5-jogo.idx) + ' restantes)' : numCandidatos <= 3 ? '🔬 Ultra Específico' : numCandidatos <= 10 ? '🎯 Focado' : '🌐 IA Analisando';
 
     document.getElementById('jogarConteudo').innerHTML=`
       <div class="jogo-topo">
