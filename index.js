@@ -501,46 +501,77 @@ app.get('/api/perguntas-dinamicas', (req, res) => {
   res.json({ total: (d.perguntas||[]).length, perguntas: d.perguntas||[] });
 });
 
-// Busca música no Deezer pelo backend — sem CORS
+// Busca música no Deezer pelo backend — sistema inteligente de matching
 app.get('/api/musica', async (req, res) => {
   const nome = req.query.q;
   if (!nome) return res.json({ erro: 'Informe q' });
   try {
-    // Tenta várias buscas em ordem de especificidade
-    const tentativas = [
-      `${nome} opening theme`,
-      `${nome} soundtrack`,
-      `${nome} theme song`,
-      `${nome} trilha sonora`,
-      nome
-    ];
+    const nomeMin = nome.toLowerCase();
     
-    for (const q of tentativas) {
-      const r = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=5`);
-      const d = await r.json();
-      if (!d.data || d.data.length === 0) continue;
+    // Função de score para avaliar quão relevante é a faixa
+    function scoreFaixa(track) {
+      let score = 0;
+      const titulo = (track.title || '').toLowerCase();
+      const album = (track.album?.title || '').toLowerCase();
+      const artista = (track.artist?.name || '').toLowerCase();
       
-      // Prefere faixas onde o título do álbum ou artista menciona o nome da série
-      const nomeMin = nome.toLowerCase();
-      let track = d.data.find(t => 
-        t.album?.title?.toLowerCase().includes(nomeMin) ||
-        t.title?.toLowerCase().includes(nomeMin)
-      );
+      // Match exato no título da faixa = máxima prioridade
+      if (titulo.includes(nomeMin)) score += 100;
+      // Match no álbum = alta prioridade  
+      if (album.includes(nomeMin)) score += 80;
+      // Palavras-chave de trilha no título
+      if (titulo.includes('theme') || titulo.includes('opening') || titulo.includes('soundtrack')) score += 30;
+      if (titulo.includes('trilha') || titulo.includes('tema')) score += 30;
+      // Penaliza covers e remixes
+      if (titulo.includes('cover') || titulo.includes('remix') || titulo.includes('karaoke')) score -= 50;
+      // Tem preview disponível
+      if (track.preview) score += 20;
       
-      // Se não achou específico, pega o primeiro com preview
-      if (!track) track = d.data.find(t => t.preview);
-      if (!track) continue;
-      if (!track.preview) continue;
-      
-      return res.json({
-        titulo: track.title,
-        artista: track.artist?.name || '',
-        preview: track.preview,
-        capa: track.album?.cover_medium || track.album?.cover_small || ''
-      });
+      return score;
     }
     
-    res.json({ erro: 'Trilha não encontrada' });
+    const tentativas = [
+      `${nome} theme`,
+      `${nome} opening`,
+      `${nome} soundtrack`,
+      `${nome} trilha sonora`,
+      `${nome} tema musical`,
+    ];
+    
+    let melhorTrack = null;
+    let melhorScore = -999;
+    
+    for (const q of tentativas) {
+      try {
+        const r = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=10`);
+        const d = await r.json();
+        if (!d.data || d.data.length === 0) continue;
+        
+        for (const track of d.data) {
+          if (!track.preview) continue;
+          const s = scoreFaixa(track);
+          if (s > melhorScore) {
+            melhorScore = s;
+            melhorTrack = track;
+          }
+        }
+        
+        // Se achou match de alta qualidade, para de buscar
+        if (melhorScore >= 80) break;
+      } catch(e) { continue; }
+    }
+    
+    if (!melhorTrack || melhorScore < 0) {
+      return res.json({ erro: 'Trilha não encontrada' });
+    }
+    
+    res.json({
+      titulo: melhorTrack.title,
+      artista: melhorTrack.artist?.name || '',
+      preview: melhorTrack.preview,
+      capa: melhorTrack.album?.cover_medium || melhorTrack.album?.cover_small || '',
+      score: melhorScore
+    });
   } catch(e) {
     res.json({ erro: e.message });
   }
