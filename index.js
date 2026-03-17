@@ -325,151 +325,87 @@ app.post('/api/jogo/pergunta', async (req, res) => {
   const { respostas } = req.body;
   const feitas = new Set((respostas || []).map(r => r.id));
   const num = (respostas || []).length;
+  const sim = id => (respostas||[]).find(r => r.id === id && r.resposta >= 0.5);
 
-  // ============================================================
-  // BLOCO 1 — 5 perguntas de TIPO E FORMATO
-  // ============================================================
-  const BLOCO1 = [
-    {id:'filme',     txt:'É um filme (não uma série)?'},
-    {id:'animacao',  txt:'É animação ou desenho animado?'},
-    {id:'pos2010',   txt:'Foi lançado depois de 2010?'},
-    {id:'infantil',  txt:'É voltado para crianças ou adolescentes?'},
-    {id:'americano', txt:'É produção americana (EUA)?'},
+  // 15 PERGUNTAS FIXAS EM ORDEM — nunca bugam
+  const FIXAS = [
+    {id:'filme',      txt:'É um filme (não uma série)?'},
+    {id:'animacao',   txt:'É animação ou desenho animado?'},
+    {id:'pos2010',    txt:'Foi lançado depois de 2010?'},
+    {id:'infantil',   txt:'É voltado para crianças ou adolescentes?'},
+    {id:'americano',  txt:'É produção americana (EUA)?'},
+    {id:'anime',      txt:'É anime japonês?'},
+    {id:'fantasia',   txt:'Tem elementos de fantasia ou magia?'},
+    {id:'acao',       txt:'É de ação ou aventura?'},
+    {id:'terror',     txt:'É terror ou suspense?'},
+    {id:'comedia',    txt:'É comédia com muito humor?'},
+    {id:'poderes',    txt:'O protagonista tem poderes especiais?'},
+    {id:'protmulher', txt:'A protagonista principal é mulher?'},
+    {id:'maisdeuma',  txt:'Tem mais de uma temporada ou sequência?'},
+    {id:'classico',   txt:'É considerado um grande clássico?'},
+    {id:'vilao',      txt:'Tem um vilão muito marcante?'},
   ];
 
-  // ============================================================
-  // BLOCO 2 — 5 perguntas de GÊNERO
-  // Adapta baseado nas respostas do bloco 1
-  // ============================================================
-  function gerarBloco2(resps) {
-    const sim = id => resps.find(r => r.id === id && r.resposta >= 0.5);
-    const nao = id => resps.find(r => r.id === id && r.resposta <= -0.5);
-    const pergs = [];
-
-    // Se é animação japonesa → pergunta sobre anime especificamente
-    if (sim('animacao') && !nao('anime')) pergs.push({id:'anime', txt:'É anime japonês?'});
-    else if (!sim('animacao')) pergs.push({id:'anime', txt:'É anime japonês?'});
-
-    // Gênero principal baseado no contexto
-    if (!sim('infantil')) pergs.push({id:'adulto', txt:'É voltado exclusivamente para adultos?'});
-    pergs.push({id:'fantasia', txt:'Tem elementos de fantasia ou magia?'});
-    pergs.push({id:'acao',     txt:'É de ação ou aventura?'});
-    
-    // Terror só se não for infantil
-    if (!sim('infantil')) pergs.push({id:'terror', txt:'É terror ou suspense psicológico?'});
-    else pergs.push({id:'comedia', txt:'É comédia com muito humor?'});
-
-    return pergs;
+  const proxFixa = FIXAS.find(p => !feitas.has(p.id));
+  if (proxFixa) {
+    const idx = FIXAS.indexOf(proxFixa);
+    const fase = idx < 5 ? 1 : idx < 10 ? 2 : 3;
+    console.log('[FIXO] Pergunta', idx+1, ':', proxFixa.id);
+    return res.json({ pergunta: proxFixa, fase, bloco: ['Tipo','Gênero','Características'][fase-1], num: idx+1, total: 30 });
   }
 
-  // ============================================================
-  // BLOCO 3 — 5 perguntas de CARACTERÍSTICAS
-  // ============================================================
-  function gerarBloco3(resps) {
-    const sim = id => resps.find(r => r.id === id && r.resposta >= 0.5);
-    const pergs = [];
-
-    pergs.push({id:'poderes',    txt:'O protagonista tem poderes especiais ou sobrenaturais?'});
-    pergs.push({id:'protmulher', txt:'A protagonista principal é mulher?'});
-    pergs.push({id:'maisdeuma',  txt:'Tem mais de uma temporada ou sequência?'});
-    
-    if (sim('fantasia') || sim('acao')) {
-      pergs.push({id:'superheroi', txt:'Tem super-heróis com traje ou fantasia?'});
-    } else {
-      pergs.push({id:'classico', txt:'É considerado um grande clássico?'});
-    }
-    
-    pergs.push({id:'vilao', txt:'Tem um vilão muito marcante e famoso?'});
-
-    return pergs;
-  }
-
-  // Verifica qual bloco está
-  const proxB1 = BLOCO1.find(p => !feitas.has(p.id));
-  if (proxB1) {
-    return res.json({ pergunta: proxB1, fase: 1, bloco: 'Tipo e Formato', num: BLOCO1.indexOf(proxB1)+1, total: 30 });
-  }
-
-  const bloco2 = gerarBloco2(respostas || []);
-  const proxB2 = bloco2.find(p => !feitas.has(p.id));
-  if (proxB2) {
-    return res.json({ pergunta: proxB2, fase: 2, bloco: 'Gênero', num: 5+bloco2.indexOf(proxB2)+1, total: 30 });
-  }
-
-  const bloco3 = gerarBloco3(respostas || []);
-  const proxB3 = bloco3.find(p => !feitas.has(p.id));
-  if (proxB3) {
-    return res.json({ pergunta: proxB3, fase: 3, bloco: 'Características', num: 10+bloco3.indexOf(proxB3)+1, total: 30 });
-  }
-
-  // ============================================================
-  // FASE IA — 15 perguntas inteligentes com fallback automático
-  // ============================================================
+  // FASE IA — perguntas 16-30
+  console.log('[IA] Iniciando fase IA. Respostas recebidas:', num);
+  
   const candidatos = await buscarCandidatosTMDB(respostas || []);
-
-  // Prompt CURTO — evita timeout por contexto longo
-  const ultimas8 = (respostas||[]).slice(-8);
-  const historicoCurto = ultimas8
-    .map(r => `${r.txt.slice(0,35).replace(/"/g,"'")}: ${r.resposta>=0.5?'SIM':r.resposta<=-0.5?'NAO':'?'}`)
-    .join(' | ');
-  const nomesCands = candidatos.slice(0,5).map(c=>c.nome).join(', ');
-  const idsRecentes = [...feitas].slice(-8).join(',');
-
-  const prompt = `Adivinha filme/serie. Candidatos: ${nomesCands||'varios'}. Respostas: ${historicoCurto}. IDs usados: ${idsRecentes}. Crie 1 pergunta SIM/NAO especifica. JSON: {"id":"snake_id","txt":"Pergunta?"}`;
-
-  console.log('[IA] Chamando. Candidatos:' + candidatos.length + ' Prompt:' + prompt.length + 'chars');
+  console.log('[IA] Candidatos TMDB:', candidatos.length);
 
   if (!OR_KEY) {
-    // Sem IA: vai direto para revelar
+    console.log('[IA] Sem OR_KEY, revelando');
     return res.json({ pergunta: null, revelar: true });
   }
 
-  // Tenta OpenRouter → fallback Llama
-  const modelos = [OR_MODEL, 'meta-llama/llama-3.2-3b-instruct:free'];
-  
-  for (const modelo of modelos) {
+  const historico = (respostas||[]).slice(-8)
+    .map(r => `${r.txt.slice(0,30)}: ${r.resposta>=0.5?'SIM':r.resposta<=-0.5?'NAO':'?'}`)
+    .join(' | ');
+  const cands = candidatos.slice(0,5).map(c=>c.nome).join(', ');
+  const ids = [...feitas].slice(-8).join(',');
+  const prompt = `Adivinha filme/serie. Candidatos: ${cands||'varios'}. Contexto: ${historico}. IDs usados: ${ids}. Pergunta SIM/NAO especifica. JSON: {"id":"snake_id","txt":"Pergunta?"}`;
+
+  console.log('[IA] Prompt length:', prompt.length);
+
+  for (const modelo of [OR_MODEL, 'meta-llama/llama-3.2-3b-instruct:free']) {
     try {
+      console.log('[IA] Tentando modelo:', modelo);
       const r = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' },
         body: JSON.stringify({ model: modelo, max_tokens: 80, messages: [{ role: 'user', content: prompt }] })
       }, 15000);
-      
       const d = await r.json();
       const txt = d.choices?.[0]?.message?.content || '';
-      console.log('[IA] Modelo:', modelo, '| Status:', r.status, '| Resposta bruta:', txt.slice(0,150));
+      console.log('[IA]', modelo, 'status:', r.status, 'resposta:', txt.slice(0,120));
       const match = txt.match(/\{[\s\S]*?\}/);
       if (match) {
         const perg = JSON.parse(match[0]);
-        console.log('[IA] Resposta:', JSON.stringify(perg));
-        
         if (perg.id && perg.txt) {
-          // Sanitiza o id: remove acentos, espaços, caracteres especiais
-          const idLimpo = perg.id
-            .toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-            .replace(/[^a-z0-9_]/g, '_') // substitui caracteres inválidos por _
-            .replace(/__+/g, '_') // remove underscores duplos
-            .slice(0, 40); // limita tamanho
-          
+          const idLimpo = perg.id.toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g,'')
+            .replace(/[^a-z0-9_]/g,'_').replace(/__+/g,'_').slice(0,40);
           if (idLimpo && !feitas.has(idLimpo)) {
             perg.id = idLimpo;
+            console.log('[IA] Pergunta gerada:', JSON.stringify(perg));
             return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
-          } else {
-            console.log('[IA] ID repetido ou inválido:', idLimpo, '- tentando próximo modelo');
           }
+          console.log('[IA] ID repetido:', idLimpo);
         }
-      } else {
-        console.log('[IA] JSON não encontrado na resposta:', txt.slice(0,100));
       }
-    } catch(e) { 
-      console.log('IA falhou (' + modelo + '):', e.message);
-      continue; 
+    } catch(e) {
+      console.log('[IA] Erro modelo', modelo, ':', e.message);
     }
   }
 
-  // Todas as IAs falharam — vai direto para revelar o título
-  console.log('[IA] Todas falharam, revelando título');
+  console.log('[IA] Todas falharam, revelando titulo');
   res.json({ pergunta: null, revelar: true, candidatos: candidatos.length });
 });
 
