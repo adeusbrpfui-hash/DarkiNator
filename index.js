@@ -439,9 +439,26 @@ app.post('/api/jogo/pergunta', async (req, res) => {
       const match = txt.match(/\{[\s\S]*?\}/);
       if (match) {
         const perg = JSON.parse(match[0]);
-        if (perg.id && perg.txt && !feitas.has(perg.id) && /^[a-z0-9_]+$/.test(perg.id)) {
-          return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
+        console.log('[IA] Resposta:', JSON.stringify(perg));
+        
+        if (perg.id && perg.txt) {
+          // Sanitiza o id: remove acentos, espaços, caracteres especiais
+          const idLimpo = perg.id
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+            .replace(/[^a-z0-9_]/g, '_') // substitui caracteres inválidos por _
+            .replace(/__+/g, '_') // remove underscores duplos
+            .slice(0, 40); // limita tamanho
+          
+          if (idLimpo && !feitas.has(idLimpo)) {
+            perg.id = idLimpo;
+            return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
+          } else {
+            console.log('[IA] ID repetido ou inválido:', idLimpo, '- tentando próximo modelo');
+          }
         }
+      } else {
+        console.log('[IA] JSON não encontrado na resposta:', txt.slice(0,100));
       }
     } catch(e) { 
       console.log('IA falhou (' + modelo + '):', e.message);
@@ -450,7 +467,7 @@ app.post('/api/jogo/pergunta', async (req, res) => {
   }
 
   // Todas as IAs falharam — vai direto para revelar o título
-  console.log('Todas IAs falharam, revelando título diretamente');
+  console.log('[IA] Todas falharam, revelando título');
   res.json({ pergunta: null, revelar: true, candidatos: candidatos.length });
 });
 
