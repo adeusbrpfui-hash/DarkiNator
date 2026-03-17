@@ -392,43 +392,48 @@ app.post('/api/jogo/pergunta', async (req, res) => {
   // ============================================================
   const candidatos = await buscarCandidatosTMDB(respostas || []);
 
-  const historico = (respostas || []).map(r =>
-    `"${r.txt}" → ${r.resposta >= 0.5 ? 'SIM' : r.resposta <= -0.5 ? 'NÃO' : 'TALVEZ'}`
-  ).join('\n');
+  // Prompt CURTO — evita timeout por contexto longo
+  const ultimas8 = (respostas||[]).slice(-8);
+  const historicoCurto = ultimas8
+    .map(r => `${r.txt.slice(0,35).replace(/"/g,"'")}: ${r.resposta>=0.5?'SIM':r.resposta<=-0.5?'NAO':'?'}`)
+    .join(' | ');
+  const nomesCands = candidatos.slice(0,5).map(c=>c.nome).join(', ');
+  const idsRecentes = [...feitas].slice(-8).join(',');
 
-  const listaCandidatos = candidatos.slice(0, 8)
-    .map((c, i) => `${i+1}. ${c.nome} (${c.tipo})`)
-    .join('\n');
+  const prompt = `Adivinha filme/serie. Candidatos: ${nomesCands||'varios'}. Respostas: ${historicoCurto}. IDs usados: ${idsRecentes}. Crie 1 pergunta SIM/NAO especifica. JSON: {"id":"snake_id","txt":"Pergunta?"}`;
 
-  const prompt = `Você é o DarkiNator, gênio de adivinhação de filmes e séries.
+  console.log('[IA] Chamando. Candidatos:' + candidatos.length + ' Prompt:' + prompt.length + 'chars');
 
-O jogador respondeu:
-${historico}
-
-Candidatos restantes (${candidatos.length}):
-${listaCandidatos || 'Analisando...'}
-
-IDs JÁ USADOS — NUNCA repita estes: ${[...feitas].join(', ')}
-
-Crie UMA pergunta SIM/NÃO que:
-- Seja COERENTE com as respostas acima (ex: se disse pós-2010, NÃO pergunte se é antes de 2000)
-- Elimine o máximo de candidatos
-- Se poucos candidatos, seja ultra específica (personagem, objeto, local icônico)
-- id único em snake_case, sem acentos
-
-JSON apenas:
-{"id":"id_unico","txt":"Pergunta coerente em português?"}`;
-
-  // Tenta OpenRouter → fallback para outro endpoint gratuito
-  const tentativas = [
-    { url: 'https://openrouter.ai/api/v1/chat/completions', headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' }, body: { model: OR_MODEL, max_tokens: 100, messages: [{ role: 'user', content: prompt }] } },
-    { url: 'https://openrouter.ai/api/v1/chat/completions', headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' }, body: { model: 'meta-llama/llama-3.2-3b-instruct:free', max_tokens: 100, messages: [{ role: 'user', content: prompt }] } },
-  ];
-
-  for (const tent of tentativas) {
-    if (!OR_KEY) break;
+    // Helper com timeout de 8s para não travar
+  async function fetchComTimeout(url, opts, ms=8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
     try {
-      const r = await fetch(tent.url, { method: 'POST', headers: tent.headers, body: JSON.stringify(tent.body) });
+      const r = await fetch(url, { ...opts, signal: controller.signal });
+      clearTimeout(timer);
+      return r;
+    } catch(e) {
+      clearTimeout(timer);
+      throw e;
+    }
+  }
+
+  if (!OR_KEY) {
+    // Sem IA: vai direto para revelar
+    return res.json({ pergunta: null, revelar: true });
+  }
+
+  // Tenta OpenRouter → fallback Llama
+  const modelos = [OR_MODEL, 'meta-llama/llama-3.2-3b-instruct:free'];
+  
+  for (const modelo of modelos) {
+    try {
+      const r = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' },
+        body: JSON.stringify({ model: modelo, max_tokens: 100, messages: [{ role: 'user', content: prompt }] })
+      }, 8000);
+      
       const d = await r.json();
       const txt = d.choices?.[0]?.message?.content || '';
       const match = txt.match(/\{[\s\S]*?\}/);
@@ -438,11 +443,15 @@ JSON apenas:
           return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
         }
       }
-    } catch(e) { console.log('IA tentativa falhou:', e.message); continue; }
+    } catch(e) { 
+      console.log('IA falhou (' + modelo + '):', e.message);
+      continue; 
+    }
   }
 
-  // Se todas as IAs falharam — retorna null para frontend mostrar animação de espera
-  res.json({ pergunta: null, aguardando: true, candidatos: candidatos.length });
+  // Todas as IAs falharam — vai direto para revelar o título
+  console.log('Todas IAs falharam, revelando título diretamente');
+  res.json({ pergunta: null, revelar: true, candidatos: candidatos.length });
 });
 
 
