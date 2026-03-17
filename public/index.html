@@ -898,12 +898,13 @@ function tocarMusica(nomeTitulo){
   const fonte=document.getElementById('pFonte');
   const btn=document.getElementById('playBt');
   const scPlayer=document.getElementById('scPlayer');
-  const scFrame=document.getElementById('scFrame');
 
   // Toggle off
   if(scPlayer.style.display==='block'){
+    const au=document.getElementById('audioPreview');
+    if(au)au.pause();
     scPlayer.style.display='none';
-    scFrame.src='';
+    scPlayer.innerHTML='';
     btn.textContent='▶';
     fonte.textContent='Clique para ouvir';
     return;
@@ -912,31 +913,27 @@ function tocarMusica(nomeTitulo){
   btn.textContent='⏳';
   fonte.textContent='Buscando trilha...';
 
-  // Busca no Deezer via CORS proxy — retorna preview de 30s sem bloqueio
-  const q=encodeURIComponent(nomeTitulo+' soundtrack');
-  fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.deezer.com/search?q='+q+'&limit=1')}`)
+  // Busca pelo nosso backend — sem CORS, sem proxy externo
+  fetch(`/api/musica?q=${encodeURIComponent(nomeTitulo+' soundtrack')}`)
     .then(r=>r.json())
     .then(d=>{
-      const data=JSON.parse(d.contents);
-      const track=data.data?.[0];
-      if(track && track.preview){
-        // Tem preview! Toca com audio element
-        scPlayer.innerHTML=`
-          <div style="background:#1a0a2e;border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
-            <img src="${track.album?.cover_small||''}" style="width:48px;height:48px;border-radius:8px;object-fit:cover">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:12px;font-weight:800;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${track.title}</div>
-              <div style="font-size:10px;color:#a855f7">${track.artist?.name||''} · preview 30s</div>
-              <audio id="audioPreview" controls src="${track.preview}" style="width:100%;height:28px;margin-top:6px;accent-color:#a855f7" autoplay></audio>
-            </div>
-          </div>`;
-        scPlayer.style.display='block';
-        btn.textContent='⏸';
-        fonte.textContent='🎵 Deezer Preview';
-      } else {
+      if(d.erro||!d.preview){
         fonte.textContent='Trilha não encontrada';
         btn.textContent='▶';
+        return;
       }
+      scPlayer.innerHTML=`
+        <div style="background:#1a0a2e;border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
+          ${d.capa?`<img src="${d.capa}" style="width:50px;height:50px;border-radius:8px;object-fit:cover">`:''}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:800;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.titulo}</div>
+            <div style="font-size:10px;color:#a855f7;margin-bottom:6px">${d.artista} · preview 30s</div>
+            <audio id="audioPreview" controls src="${d.preview}" style="width:100%;height:30px;accent-color:#a855f7" autoplay></audio>
+          </div>
+        </div>`;
+      scPlayer.style.display='block';
+      btn.textContent='⏸';
+      fonte.textContent='🎵 Tocando';
     })
     .catch(()=>{
       fonte.textContent='Erro ao buscar trilha';
