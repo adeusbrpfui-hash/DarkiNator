@@ -912,14 +912,36 @@ function tocarMusica(nomeTitulo){
   btn.textContent='⏳';
   fonte.textContent='Buscando trilha...';
 
-  // SoundCloud widget embed — funciona dentro do site sem bloqueio
+  // Busca no Deezer via CORS proxy — retorna preview de 30s sem bloqueio
   const q=encodeURIComponent(nomeTitulo+' soundtrack');
-  const embedUrl=`https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/search%3Fq%3D${q}&color=%23a855f7&auto_play=true&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false&buying=false&sharing=false&download=false`;
-
-  scFrame.src=embedUrl;
-  scPlayer.style.display='block';
-  btn.textContent='⏸';
-  fonte.textContent='🎵 Tocando no site';
+  fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.deezer.com/search?q='+q+'&limit=1')}`)
+    .then(r=>r.json())
+    .then(d=>{
+      const data=JSON.parse(d.contents);
+      const track=data.data?.[0];
+      if(track && track.preview){
+        // Tem preview! Toca com audio element
+        scPlayer.innerHTML=`
+          <div style="background:#1a0a2e;border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
+            <img src="${track.album?.cover_small||''}" style="width:48px;height:48px;border-radius:8px;object-fit:cover">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:800;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${track.title}</div>
+              <div style="font-size:10px;color:#a855f7">${track.artist?.name||''} · preview 30s</div>
+              <audio id="audioPreview" controls src="${track.preview}" style="width:100%;height:28px;margin-top:6px;accent-color:#a855f7" autoplay></audio>
+            </div>
+          </div>`;
+        scPlayer.style.display='block';
+        btn.textContent='⏸';
+        fonte.textContent='🎵 Deezer Preview';
+      } else {
+        fonte.textContent='Trilha não encontrada';
+        btn.textContent='▶';
+      }
+    })
+    .catch(()=>{
+      fonte.textContent='Erro ao buscar trilha';
+      btn.textContent='▶';
+    });
 }
 
 async function confirmarAcerto(tituloId,nome,raridade,pts,capa){
