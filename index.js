@@ -3,7 +3,35 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const fetch = require('node-fetch');
+// Tenta node-fetch, senão usa https nativo do Node
+let fetch;
+try {
+  fetch = require('node-fetch');
+  if (typeof fetch !== 'function') throw new Error('not a function');
+} catch(e) {
+  console.log('node-fetch indisponível, usando https nativo');
+  const https = require('https');
+  const http = require('http');
+  fetch = (url, opts={}) => new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? https : http;
+    const options = { method: opts.method||'GET', headers: opts.headers||{} };
+    const req = lib.request(url, options, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          json: () => Promise.resolve(JSON.parse(data)),
+          text: () => Promise.resolve(data)
+        });
+      });
+    });
+    req.on('error', reject);
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
 
 const app = express();
 app.use(cors());
