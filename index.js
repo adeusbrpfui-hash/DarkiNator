@@ -47,6 +47,9 @@ const PERGS_PATH    = path.join(DATA_DIR, 'perguntas_dinamicas.json');
 const TMDB_KEY  = process.env.TMDB_KEY || '8265bd1679663a7ea12ac168da84d2e8';
 const OR_KEY    = process.env.OPENROUTER_KEY || '';
 const OR_MODEL  = 'google/gemini-2.0-flash-exp:free';
+const GH_TOKEN  = process.env.GITHUB_TOKEN || '';
+const GH_REPO   = process.env.GITHUB_REPO || 'adeusbrpfui-hash/DarkiNator';  // seu repo
+const GH_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 // ============================================================
 // HELPERS JSON
@@ -58,6 +61,84 @@ function lerJSON(p, def) {
 function salvar(p, d) {
   try { fs.writeFileSync(p, JSON.stringify(d, null, 2)); } catch(e) { console.error('salvar err:', e.message); }
 }
+// ============================================================
+// PERSISTÊNCIA VIA GITHUB — salva e carrega banco do repositório
+// ============================================================
+async function carregarBancoDoGitHub() {
+  if (!GH_TOKEN) return false;
+  try {
+    const url = `https://api.github.com/repos/${GH_REPO}/contents/data/titulos.json?ref=${GH_BRANCH}`;
+    const r = await fetch(url, {
+      headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (!r.ok) return false;
+    const d = await r.json();
+    const conteudo = JSON.parse(Buffer.from(d.content, 'base64').toString('utf8'));
+    if (conteudo.titulos && conteudo.titulos.length > 0) {
+      salvar(TITULOS_PATH, conteudo);
+      console.log('✅ Banco carregado do GitHub:', conteudo.titulos.length, 'títulos');
+      return true;
+    }
+  } catch(e) { console.log('GitHub carregar falhou:', e.message); }
+  return false;
+}
+
+async function salvarBancoNoGitHub() {
+  if (!GH_TOKEN) return;
+  try {
+    const titulos = lerTitulos();
+    const conteudo = JSON.stringify(titulos, null, 2);
+    const base64 = Buffer.from(conteudo).toString('base64');
+    const url = `https://api.github.com/repos/${GH_REPO}/contents/data/titulos.json`;
+    
+    // Pega SHA atual do arquivo (necessário para atualizar)
+    let sha = null;
+    try {
+      const rGet = await fetch(url + `?ref=${GH_BRANCH}`, {
+        headers: { 'Authorization': `token ${GH_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (rGet.ok) {
+        const dGet = await rGet.json();
+        sha = dGet.sha;
+      }
+    } catch(e) {}
+
+    const body = {
+      message: `banco: ${titulos.titulos.length} títulos - ${new Date().toISOString().slice(0,10)}`,
+      content: base64,
+      branch: GH_BRANCH
+    };
+    if (sha) body.sha = sha;
+
+    const rPut = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${GH_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    if (rPut.ok) {
+      console.log('✅ Banco salvo no GitHub:', titulos.titulos.length, 'títulos');
+    } else {
+      const err = await rPut.json();
+      console.log('GitHub salvar falhou:', err.message);
+    }
+  } catch(e) { console.log('GitHub salvar erro:', e.message); }
+}
+
+// Salva no GitHub a cada 30 minutos se houve mudanças
+let ultimoTotalSalvo = 0;
+setInterval(async () => {
+  const t = lerTitulos();
+  if (t.titulos.length !== ultimoTotalSalvo) {
+    ultimoTotalSalvo = t.titulos.length;
+    await salvarBancoNoGitHub();
+  }
+}, 30 * 60 * 1000);
+
 const lerDB      = () => lerJSON(DB_PATH,      { usuarios:[], resultados:[], comentarios:[] });
 const salvarDB   = d  => salvar(DB_PATH, d);
 const lerTitulos = () => lerJSON(TITULOS_PATH, { titulos:[], expansaoHoje:0, ultimaExpansao:'' });
@@ -164,12 +245,19 @@ const PERGUNTAS_FIXAS = [
 // ============================================================
 // INIT
 // ============================================================
-function initTitulos() {
+async function initTitulos() {
+  // Tenta carregar banco salvo do GitHub primeiro
+  const carregouGitHub = await carregarBancoDoGitHub();
+  if (carregouGitHub) return;
+  
+  // Se não tem no GitHub, usa banco local ou iniciais
   const d = lerTitulos();
   if (d.titulos.length === 0) {
     d.titulos = TITULOS_INICIAIS;
     salvarTitulos(d);
     console.log('Banco inicial:', TITULOS_INICIAIS.length, 'títulos');
+  } else {
+    console.log('Banco local:', d.titulos.length, 'títulos');
   }
 }
 
@@ -340,6 +428,9 @@ async function processarTitulo(nome) {
     titulos.titulos.push(novoTitulo);
     salvarTitulos(titulos);
     console.log('✅ Adicionado:', nomePT, '| Total:', titulos.titulos.length);
+
+    // Salva no GitHub imediatamente quando título entra
+    salvarBancoNoGitHub().catch(e => console.log('GitHub err:', e.message));
 
     // Gera perguntas específicas imediatamente
     if (OR_KEY && sinopse) {
@@ -648,7 +739,10 @@ async function expandirBanco() {
     } catch(e) { console.error('Expansão erro:', e.message); }
   }
   expansaoRodando = false;
-  console.log('✅ Expansão ok. Total:', lerTitulos().titulos.length);
+  const totalFinal = lerTitulos().titulos.length;
+  console.log('✅ Expansão ok. Total:', totalFinal);
+  // Salva no GitHub após expansão
+  await salvarBancoNoGitHub();
 }
 
 // ============================================================
@@ -701,9 +795,10 @@ app.get('/api/info', (req, res) => {
 // START
 // ============================================================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🔮 DarkiNator v4 porta ${PORT}`);
-  initTitulos();
+  await initTitulos();
+  ultimoTotalSalvo = lerTitulos().titulos.length;
   setTimeout(() => expandirBanco(), 20000);
   setInterval(() => expandirBanco(), 6 * 60 * 60 * 1000);
   setTimeout(() => gerarPerguntasEmLote(), 35 * 60 * 1000);
