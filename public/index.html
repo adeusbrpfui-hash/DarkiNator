@@ -712,10 +712,12 @@ function irTela(id){
 // ============================================================
 // JOGO — SISTEMA DE PONTUAÇÃO POR PESO
 // ============================================================
-function iniciarJogo(){
+async function iniciarJogo(){
+  // Sempre recarrega banco e perguntas antes de jogar — pega dinâmicas novas
+  document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">PREPARANDO O GÊNIO...</div></div>`;
+  await carregarBanco();
   if(BANCO.length===0){
-    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">CARREGANDO BANCO...</div></div>`;
-    carregarBanco().then(()=>{if(BANCO.length>0)iniciarJogo();});
+    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">Banco vazio!</div></div>`;
     return;
   }
   jogo={
@@ -788,9 +790,16 @@ function renderPerg(){
 
 function resp(pgId,val){
   jogo.feitas.push(pgId);
+  // Verifica se é pergunta dinâmica (mais específica = mais peso)
+  const pergDinamica = PERGUNTAS.find(p=>p.id===pgId&&p.titulo);
+  const multiplicador = pergDinamica ? 2.0 : 1.0; // perguntas específicas valem 2x
+  
   for(const sc of jogo.scores){
-    const p=BANCO[sc.i]?.tags?.[pgId]||0;
-    sc.s+=p*val;
+    const tags=BANCO[sc.i]?.tags||{};
+    const p=tags[pgId]||0;
+    // Bônus extra se a pergunta foi gerada especificamente para este título
+    const bonus = (pergDinamica && pergDinamica.titulo === BANCO[sc.i]?.nome) ? 1.5 : 1.0;
+    sc.s+=p*val*multiplicador*bonus;
   }
   jogo.idx++;
   document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">ANALISANDO...</div></div>`;
