@@ -914,6 +914,8 @@ async function mostrarResultado(){
   }
 
   document.getElementById('jogarConteudo').innerHTML=`<div class="loading"><div class="spinner"></div><div class="loading-txt">CONSULTANDO AS SOMBRAS...</div></div>`;
+  // Salva referência ao título para busca de música
+  jogo.tituloAtual = filme;
 
   let medIco,medCor,medNome,pts;
   if(filme.raridade==='raro'){medIco='🥇';medCor='#f59e0b';medNome='OURO — Título Raro!';pts=300;}
@@ -1018,8 +1020,9 @@ function tocarMusica(nomeTitulo){
   btn.textContent='⏳';
   fonte.textContent='Buscando trilha...';
 
-  // Busca pelo nosso backend — sem CORS, sem proxy externo
-  fetch(`/api/musica?q=${encodeURIComponent(nomeTitulo+' soundtrack')}`)
+  // Busca pelo nosso backend — usa nome original para melhor match
+  const nomeOrig = jogo?.tituloAtual?.nomeOriginal || nomeTitulo;
+  fetch(`/api/musica?q=${encodeURIComponent(nomeTitulo)}&original=${encodeURIComponent(nomeOrig)}`)
     .then(r=>r.json())
     .then(d=>{
       if(d.erro||!d.preview){
@@ -1069,7 +1072,14 @@ async function enviarSugestao(){
     const d=await r.json();
     document.getElementById('sugerirMsg').textContent=d.msg||d.erro||'Enviado!';
     document.getElementById('sugerirMsg').style.color=d.sucesso?'#10b981':'#ef4444';
-    if(d.sucesso)setTimeout(fecharSugerir,2000);
+    if(d.sucesso){
+      // Aguarda 3s e recarrega o banco para incluir o novo título
+      setTimeout(async()=>{
+        fecharSugerir();
+        await carregarBanco();
+        notif(`✅ "${nome}" adicionado! ${BANCO.length} títulos no banco.`,'#10b981');
+      },3000);
+    }
   }catch{document.getElementById('sugerirMsg').textContent='Erro de conexão!';}
 }
 
