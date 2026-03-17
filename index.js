@@ -394,13 +394,11 @@ app.post('/api/jogo/pergunta', async (req, res) => {
 
   const historico = (respostas || []).map(r =>
     `"${r.txt}" → ${r.resposta >= 0.5 ? 'SIM' : r.resposta <= -0.5 ? 'NÃO' : 'TALVEZ'}`
-  ).join('
-');
+  ).join('\n');
 
   const listaCandidatos = candidatos.slice(0, 8)
     .map((c, i) => `${i+1}. ${c.nome} (${c.tipo})`)
-    .join('
-');
+    .join('\n');
 
   const prompt = `Você é o DarkiNator, gênio de adivinhação de filmes e séries.
 
