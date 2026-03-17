@@ -469,6 +469,7 @@ iframe.yt-frame{width:100%;height:0;border:none;display:none}
   <button class="nb" id="btnTop" onclick="irTela('telaTop')"><span class="ic">🎬</span>TOP</button>
   <button class="nb" id="btnRank" onclick="irTela('telaRank')"><span class="ic">🏆</span>RANK</button>
   <button class="nb" id="btnPerfil" onclick="irTela('telaPerfil')"><span class="ic">👤</span>PERFIL</button>
+  <button class="nb" id="btnSobre" onclick="abrirSobre()"><span class="ic">❓</span>SOBRE</button>
 </div>
 
 <!-- JOGAR -->
@@ -505,140 +506,103 @@ iframe.yt-frame{width:100%;height:0;border:none;display:none}
   <button class="btn-sair" onclick="sair()">SAIR</button>
 </div>
 
+
+
+<!-- MODAL SOBRE -->
+<div id="modalSobre" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="background:#0d1225;border:1px solid #2e3a58;border-radius:24px;padding:36px 28px;width:100%;max-width:380px;text-align:center;position:relative;box-shadow:0 0 60px rgba(168,85,247,.15)">
+    <button onclick="document.getElementById('modalSobre').classList.add('hidden')" style="position:absolute;top:14px;right:16px;background:none;border:none;color:#64748b;font-size:22px;cursor:pointer">✕</button>
+    <div style="font-size:40px;margin-bottom:12px">🔮</div>
+    <div style="font-family:'Cinzel',serif;font-size:20px;color:#a855f7;margin-bottom:4px;letter-spacing:2px">DarkiNator</div>
+    <div style="font-size:11px;color:#64748b;letter-spacing:3px;font-family:'Orbitron',monospace;margin-bottom:24px">v3.0 — O GÊNIO DAS SOMBRAS</div>
+    <div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);border-radius:14px;padding:18px;margin-bottom:16px;text-align:left">
+      <p style="font-size:13px;color:#94a3b8;line-height:1.8">Projeto desenvolvido por um grupo de aprendizagem em programação e criação de projetos digitais, como videogames, sites e blogs, além de um banco geral para organização dos projetos.</p>
+    </div>
+    <div style="background:rgba(255,255,255,.03);border:1px solid #1c2438;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:10px;color:#64748b;letter-spacing:2px;font-family:'Orbitron',monospace;margin-bottom:8px">DESENVOLVIDO POR</div>
+      <div style="font-size:16px;font-weight:800;color:#f8fafc">Darkinator CNN 💻🎮</div>
+    </div>
+    <div style="background:rgba(255,255,255,.03);border:1px solid #1c2438;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:10px;color:#64748b;letter-spacing:2px;font-family:'Orbitron',monospace;margin-bottom:8px">EMPRESA</div>
+      <div style="font-size:15px;font-weight:800;color:#a855f7">Noctara Labs</div>
+      <div style="font-size:11px;color:#64748b;margin-top:2px">"Estrela da Noite"</div>
+    </div>
+    <div id="infoTitulos" style="font-size:11px;color:#64748b;font-family:'Orbitron',monospace;letter-spacing:1px"></div>
+  </div>
+</div>
+
+<!-- MODAL SUGERIR TÍTULO -->
+<div id="modalSugerir" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="background:#0d1225;border:1px solid #2e3a58;border-radius:24px;padding:36px 28px;width:100%;max-width:380px;position:relative;box-shadow:0 0 60px rgba(168,85,247,.15)">
+    <button onclick="fecharSugerir()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:#64748b;font-size:22px;cursor:pointer">✕</button>
+    <div style="font-family:'Cinzel',serif;font-size:18px;color:#a855f7;margin-bottom:4px">❓ O Gênio Errou?</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:20px;line-height:1.6">Diga qual título você estava pensando. Vamos adicioná-lo ao banco!</div>
+    <input id="sugerirInp" style="width:100%;padding:13px 15px;border-radius:12px;border:2px solid #2e3a58;background:rgba(255,255,255,.04);color:#f8fafc;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:10px" placeholder="Nome do filme ou série...">
+    <div id="sugerirMsg" style="font-size:13px;color:#10b981;min-height:18px;margin-bottom:10px;text-align:center"></div>
+    <button onclick="enviarSugestao()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;font-family:'Orbitron',monospace;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer">ENVIAR PARA PROCESSAMENTO</button>
+  </div>
+</div>
+
 <script>
 // ============================================================
-// ESTRELAS DE FUNDO
+// CONFIG
+// ============================================================
+const AVS=[
+  'https://api.dicebear.com/7.x/personas/svg?seed=Shadow&backgroundColor=0d1225',
+  'https://api.dicebear.com/7.x/personas/svg?seed=Ghost&backgroundColor=0d1225',
+  'https://api.dicebear.com/7.x/personas/svg?seed=Phantom&backgroundColor=0d1225',
+  'https://api.dicebear.com/7.x/personas/svg?seed=Dark&backgroundColor=0d1225',
+  'https://api.dicebear.com/7.x/personas/svg?seed=Mystic&backgroundColor=0d1225',
+  'https://api.dicebear.com/7.x/personas/svg?seed=Raven&backgroundColor=0d1225',
+  'https://api.dicebear.com/7.x/personas/svg?seed=Void&backgroundColor=0d1225',
+  'https://api.dicebear.com/7.x/personas/svg?seed=Night&backgroundColor=0d1225',
+];
+
+let USER=null, captchaResp=null, avSel=0, jogo=null;
+let BANCO=[], PERGUNTAS=[];
+
+// ============================================================
+// ESTRELAS
 // ============================================================
 (function(){
-  const c=document.getElementById('stars');
-  for(let i=0;i<60;i++){
-    const s=document.createElement('div');s.className='star';
-    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${2+Math.random()*4}s;animation-delay:${Math.random()*5}s;opacity:0;width:${Math.random()>0.7?'3px':'2px'};height:${Math.random()>0.7?'3px':'2px'}`;
-    c.appendChild(s);
+  const c=document.getElementById('cv');
+  if(!c)return;
+  const ctx=c.getContext('2d');
+  c.width=window.innerWidth;c.height=window.innerHeight;
+  const stars=Array.from({length:80},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.5+.3,a:Math.random(),da:Math.random()*.01-.005}));
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s=>{s.a=Math.max(0,Math.min(1,s.a+s.da));if(s.a<=0||s.a>=1)s.da*=-1;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${s.a*.7})`;ctx.fill();});
+    requestAnimationFrame(draw);
   }
+  draw();
 })();
 
 // ============================================================
-// AVATARES
+// UTILS
 // ============================================================
-const AVS=[
-  'https://api.dicebear.com/7.x/personas/svg?seed=Shadow&backgroundColor=10131e',
-  'https://api.dicebear.com/7.x/personas/svg?seed=Ghost&backgroundColor=10131e',
-  'https://api.dicebear.com/7.x/personas/svg?seed=Phantom&backgroundColor=10131e',
-  'https://api.dicebear.com/7.x/personas/svg?seed=Dark&backgroundColor=10131e',
-  'https://api.dicebear.com/7.x/personas/svg?seed=Mystic&backgroundColor=10131e',
-  'https://api.dicebear.com/7.x/personas/svg?seed=Raven&backgroundColor=10131e',
-  'https://api.dicebear.com/7.x/personas/svg?seed=Void&backgroundColor=10131e',
-  'https://api.dicebear.com/7.x/personas/svg?seed=Night&backgroundColor=10131e',
-];
+function notif(txt,cor='#a855f7'){
+  const n=document.getElementById('notif');
+  if(!n)return;
+  n.textContent=txt;n.style.borderColor=cor;
+  n.classList.add('show');setTimeout(()=>n.classList.remove('show'),2800);
+}
+function salvarSessao(u){localStorage.setItem('darki_user',JSON.stringify(u));}
+function carregarSessao(){try{const u=localStorage.getItem('darki_user');return u?JSON.parse(u):null;}catch{return null;}}
+function limparSessao(){localStorage.removeItem('darki_user');}
 
 // ============================================================
-// PERGUNTAS
-// ============================================================
-const PERGS=[
-  {id:'p1', txt:'É um filme (não uma série)?'},
-  {id:'p2', txt:'Foi lançado após o ano 2010?'},
-  {id:'p3', txt:'É de ação ou aventura?'},
-  {id:'p4', txt:'Tem elementos de fantasia ou magia?'},
-  {id:'p5', txt:'Tem ficção científica ou tecnologia futurista?'},
-  {id:'p6', txt:'É uma produção americana?'},
-  {id:'p7', txt:'O protagonista tem poderes especiais?'},
-  {id:'p8', txt:'A história se passa em período histórico (passado)?'},
-  {id:'p9', txt:'É uma comédia com muito humor?'},
-  {id:'p10', txt:'É voltado para adultos (+18)?'},
-  {id:'p11', txt:'Dura mais de 2 horas?'},
-  {id:'p12', txt:'Ganhou ou foi indicado ao Oscar?'},
-  {id:'p13', txt:'É baseado em livro, quadrinho ou jogo?'},
-  {id:'p14', txt:'Faz parte de uma franquia ou tem sequências?'},
-  {id:'p15', txt:'Tem um vilão extremamente icônico?'},
-  {id:'p16', txt:'O final é triste ou deixa tudo em aberto?'},
-  {id:'p17', txt:'O romance é parte importante da história?'},
-  {id:'p18', txt:'É animação?'},
-  {id:'p19', txt:'Os protagonistas são crianças ou adolescentes?'},
-  {id:'p20', txt:'A história acontece no espaço ou em outro planeta?'},
-  {id:'p21', txt:'Envolve crime, máfia ou mundo do crime?'},
-  {id:'p22', txt:'Tem cenas de guerra ou conflito armado?'},
-  {id:'p23', txt:'O protagonista é um anti-herói?'},
-  {id:'p24', txt:'É terror, thriller ou suspense psicológico?'},
-  {id:'p25', txt:'Tem trilha sonora muito famosa?'},
-  {id:'p26', txt:'Foi lançado antes do ano 2000?'},
-  {id:'p27', txt:'Tem uma reviravolta surpreendente no final?'},
-  {id:'p28', txt:'O protagonista sobrevive até o fim?'},
-  {id:'p29', txt:'Envolve viagem no tempo?'},
-  {id:'p30', txt:'É baseado em fatos reais?'},
-  {id:'p31', txt:'Tem mais de uma temporada / mais de 2 filmes?'},
-  {id:'p32', txt:'É anime ou produção japonesa?'},
-  {id:'p33', txt:'Tem super-heróis com traje ou fantasia?'},
-  {id:'p34', txt:'A amizade é o tema central da história?'},
-  {id:'p35', txt:'Tem personagens não-humanos importantes?'},
-  {id:'p36', txt:'É considerado um grande clássico?'},
-  {id:'p37', txt:'Tem muitos personagens principais?'},
-  {id:'p38', txt:'O mundo é pós-apocalíptico?'},
-  {id:'p39', txt:'A protagonista principal é mulher?'},
-  {id:'p40', txt:'Tem cenas de dança ou música como parte da história?'},
-];
-
-// ============================================================
-// BANCO DE FILMES/SÉRIES
-// ============================================================
-const BANCO=[
-  {tmdb:299536,nome:'Vingadores: Guerra Infinita',tipo:'movie',raridade:'comum',p:{p1:1,p2:1,p3:1,p4:1,p5:1,p6:1,p7:1,p8:-1,p9:-1,p10:-1,p11:1,p12:-1,p13:1,p14:1,p15:1,p16:1,p17:-1,p18:-1,p19:-1,p20:1,p21:-1,p22:1,p23:-1,p24:-1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:-1,p31:1,p32:-1,p33:1,p34:1,p35:1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:299534,nome:'Vingadores: Ultimato',tipo:'movie',raridade:'comum',p:{p1:1,p2:1,p3:1,p4:1,p5:1,p6:1,p7:1,p8:-1,p9:-1,p10:-1,p11:1,p12:-1,p13:1,p14:1,p15:1,p16:-1,p17:-1,p18:-1,p19:-1,p20:1,p21:-1,p22:1,p23:-1,p24:-1,p25:1,p26:-1,p27:1,p28:1,p29:1,p30:-1,p31:1,p32:-1,p33:1,p34:1,p35:1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:278,nome:'Um Sonho de Liberdade',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:-1,p4:-1,p5:-1,p6:1,p7:-1,p8:-1,p9:-1,p10:1,p11:1,p12:1,p13:1,p14:-1,p15:1,p16:-1,p17:-1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:-1,p24:-1,p25:1,p26:1,p27:1,p28:1,p29:-1,p30:-1,p31:-1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:238,nome:'O Poderoso Chefão',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:-1,p4:-1,p5:-1,p6:1,p7:-1,p8:-1,p9:-1,p10:1,p11:1,p12:1,p13:1,p14:1,p15:1,p16:1,p17:1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:1,p24:-1,p25:1,p26:1,p27:1,p28:-1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:-1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:680,nome:'Pulp Fiction',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:1,p4:-1,p5:-1,p6:1,p7:-1,p8:-1,p9:1,p10:1,p11:1,p12:1,p13:-1,p14:-1,p15:1,p16:-1,p17:-1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:1,p24:-1,p25:1,p26:1,p27:1,p28:-1,p29:-1,p30:-1,p31:-1,p32:-1,p33:-1,p34:-1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:13,nome:'Forrest Gump',tipo:'movie',raridade:'comum',p:{p1:1,p2:-1,p3:-1,p4:-1,p5:-1,p6:1,p7:-1,p8:1,p9:1,p10:-1,p11:1,p12:1,p13:1,p14:-1,p15:-1,p16:-1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:1,p23:-1,p24:-1,p25:1,p26:1,p27:-1,p28:1,p29:-1,p30:1,p31:-1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:155,nome:'Batman: O Cavaleiro das Trevas',tipo:'movie',raridade:'comum',p:{p1:1,p2:1,p3:1,p4:-1,p5:1,p6:1,p7:-1,p8:-1,p9:-1,p10:-1,p11:1,p12:1,p13:1,p14:1,p15:1,p16:1,p17:-1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:1,p24:1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:1,p34:-1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:27205,nome:'A Origem',tipo:'movie',raridade:'medio',p:{p1:1,p2:1,p3:1,p4:1,p5:1,p6:1,p7:-1,p8:-1,p9:-1,p10:-1,p11:1,p12:1,p13:-1,p14:-1,p15:1,p16:1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:-1,p23:-1,p24:1,p25:1,p26:-1,p27:1,p28:1,p29:1,p30:-1,p31:-1,p32:-1,p33:-1,p34:-1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:550,nome:'Clube da Luta',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:1,p4:-1,p5:-1,p6:1,p7:-1,p8:-1,p9:-1,p10:1,p11:1,p12:-1,p13:1,p14:-1,p15:1,p16:1,p17:-1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:1,p24:1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:-1,p32:-1,p33:-1,p34:-1,p35:-1,p36:1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:157336,nome:'Interestelar',tipo:'movie',raridade:'medio',p:{p1:1,p2:1,p3:-1,p4:-1,p5:1,p6:1,p7:-1,p8:-1,p9:-1,p10:-1,p11:1,p12:1,p13:-1,p14:-1,p15:-1,p16:1,p17:1,p18:-1,p19:1,p20:1,p21:-1,p22:-1,p23:-1,p24:-1,p25:1,p26:-1,p27:1,p28:1,p29:1,p30:-1,p31:-1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:11,nome:'Star Wars: Uma Nova Esperança',tipo:'movie',raridade:'comum',p:{p1:1,p2:-1,p3:1,p4:1,p5:1,p6:1,p7:1,p8:-1,p9:-1,p10:-1,p11:-1,p12:1,p13:-1,p14:1,p15:1,p16:-1,p17:-1,p18:-1,p19:1,p20:1,p21:-1,p22:1,p23:-1,p24:-1,p25:1,p26:1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:19404,nome:'Dilwale Dulhania Le Jayenge',tipo:'movie',raridade:'raro',p:{p1:1,p2:-1,p3:-1,p4:-1,p5:-1,p6:-1,p7:-1,p8:-1,p9:1,p10:-1,p11:1,p12:-1,p13:-1,p14:-1,p15:-1,p16:-1,p17:1,p18:-1,p19:1,p20:-1,p21:-1,p22:-1,p23:-1,p24:-1,p25:1,p26:1,p27:1,p28:1,p29:-1,p30:-1,p31:-1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:-1,p38:-1,p39:1,p40:1}},
-  {tmdb:18785,nome:'Titanic',tipo:'movie',raridade:'comum',p:{p1:1,p2:-1,p3:-1,p4:-1,p5:-1,p6:1,p7:-1,p8:1,p9:-1,p10:-1,p11:1,p12:1,p13:-1,p14:-1,p15:-1,p16:1,p17:1,p18:-1,p19:1,p20:-1,p21:-1,p22:-1,p23:-1,p24:-1,p25:1,p26:1,p27:-1,p28:-1,p29:-1,p30:1,p31:-1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:-1,p38:-1,p39:1,p40:-1}},
-  {tmdb:122,nome:'O Senhor dos Anéis: O Retorno do Rei',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:1,p4:1,p5:-1,p6:1,p7:1,p8:-1,p9:-1,p10:-1,p11:1,p12:1,p13:1,p14:1,p15:1,p16:-1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:1,p23:1,p24:-1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:129,nome:'O Castelo Animado',tipo:'movie',raridade:'raro',p:{p1:1,p2:-1,p3:-1,p4:1,p5:-1,p6:-1,p7:1,p8:1,p9:1,p10:-1,p11:-1,p12:1,p13:-1,p14:-1,p15:1,p16:-1,p17:1,p18:1,p19:1,p20:-1,p21:-1,p22:1,p23:-1,p24:-1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:-1,p32:1,p33:-1,p34:1,p35:1,p36:1,p37:-1,p38:-1,p39:1,p40:-1}},
-  {tmdb:497,nome:'O Verde Milha',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:-1,p4:1,p5:-1,p6:1,p7:1,p8:1,p9:-1,p10:1,p11:1,p12:1,p13:1,p14:-1,p15:1,p16:1,p17:1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:-1,p24:-1,p25:1,p26:1,p27:1,p28:-1,p29:-1,p30:-1,p31:-1,p32:-1,p33:-1,p34:1,p35:1,p36:1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:424,nome:'A Lista de Schindler',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:-1,p4:-1,p5:-1,p6:1,p7:-1,p8:1,p9:-1,p10:1,p11:1,p12:1,p13:1,p14:-1,p15:1,p16:1,p17:1,p18:-1,p19:-1,p20:-1,p21:1,p22:1,p23:-1,p24:-1,p25:1,p26:1,p27:-1,p28:1,p29:-1,p30:1,p31:-1,p32:-1,p33:-1,p34:-1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:598,nome:'Cidade de Deus',tipo:'movie',raridade:'medio',p:{p1:1,p2:-1,p3:1,p4:-1,p5:-1,p6:-1,p7:-1,p8:-1,p9:-1,p10:1,p11:-1,p12:1,p13:1,p14:-1,p15:1,p16:1,p17:1,p18:-1,p19:1,p20:-1,p21:1,p22:-1,p23:1,p24:-1,p25:1,p26:-1,p27:-1,p28:-1,p29:-1,p30:1,p31:-1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:372058,nome:'Seu Nome',tipo:'movie',raridade:'raro',p:{p1:1,p2:1,p3:-1,p4:1,p5:-1,p6:-1,p7:-1,p8:-1,p9:-1,p10:-1,p11:-1,p12:-1,p13:-1,p14:-1,p15:-1,p16:-1,p17:1,p18:1,p19:1,p20:-1,p21:-1,p22:-1,p23:-1,p24:-1,p25:1,p26:-1,p27:1,p28:1,p29:1,p30:-1,p31:-1,p32:1,p33:-1,p34:1,p35:-1,p36:1,p37:-1,p38:-1,p39:1,p40:-1}},
-  {tmdb:76600,nome:'Avatar: O Caminho da Água',tipo:'movie',raridade:'raro',p:{p1:1,p2:1,p3:1,p4:1,p5:1,p6:1,p7:1,p8:-1,p9:-1,p10:-1,p11:1,p12:1,p13:-1,p14:1,p15:1,p16:-1,p17:1,p18:-1,p19:1,p20:1,p21:-1,p22:1,p23:-1,p24:-1,p25:1,p26:-1,p27:-1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:1,p36:-1,p37:1,p38:-1,p39:-1,p40:-1}},
-  // SÉRIES
-  {tmdb:1396,nome:'Breaking Bad',tipo:'tv',raridade:'comum',p:{p1:-1,p2:1,p3:-1,p4:-1,p5:-1,p6:1,p7:-1,p8:-1,p9:-1,p10:1,p11:-1,p12:1,p13:-1,p14:1,p15:1,p16:1,p17:-1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:1,p24:-1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:-1,p35:-1,p36:1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:1399,nome:'Game of Thrones',tipo:'tv',raridade:'comum',p:{p1:-1,p2:1,p3:1,p4:1,p5:-1,p6:1,p7:1,p8:1,p9:-1,p10:1,p11:-1,p12:1,p13:1,p14:1,p15:1,p16:1,p17:1,p18:-1,p19:-1,p20:-1,p21:1,p22:1,p23:1,p24:1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:-1,p35:1,p36:1,p37:1,p38:-1,p39:1,p40:-1}},
-  {tmdb:66732,nome:'Stranger Things',tipo:'tv',raridade:'comum',p:{p1:-1,p2:1,p3:1,p4:1,p5:1,p6:1,p7:1,p8:-1,p9:1,p10:-1,p11:-1,p12:1,p13:-1,p14:1,p15:1,p16:-1,p17:1,p18:-1,p19:1,p20:-1,p21:-1,p22:-1,p23:-1,p24:1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:1359251,nome:'The Last of Us',tipo:'tv',raridade:'medio',p:{p1:-1,p2:1,p3:1,p4:-1,p5:1,p6:1,p7:-1,p8:-1,p9:-1,p10:1,p11:-1,p12:1,p13:1,p14:1,p15:1,p16:1,p17:1,p18:-1,p19:1,p20:-1,p21:1,p22:1,p23:1,p24:1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:-1,p36:-1,p37:-1,p38:1,p39:-1,p40:-1}},
-  {tmdb:76479,nome:'The Boys',tipo:'tv',raridade:'medio',p:{p1:-1,p2:1,p3:1,p4:-1,p5:1,p6:1,p7:1,p8:-1,p9:1,p10:1,p11:-1,p12:-1,p13:1,p14:1,p15:1,p16:-1,p17:-1,p18:-1,p19:-1,p20:-1,p21:1,p22:1,p23:1,p24:-1,p25:-1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:1,p34:-1,p35:-1,p36:-1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:60625,nome:'Rick and Morty',tipo:'tv',raridade:'medio',p:{p1:-1,p2:1,p3:1,p4:1,p5:1,p6:1,p7:1,p8:-1,p9:1,p10:1,p11:-1,p12:-1,p13:-1,p14:1,p15:1,p16:-1,p17:-1,p18:1,p19:-1,p20:1,p21:-1,p22:-1,p23:1,p24:-1,p25:1,p26:-1,p27:1,p28:1,p29:1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:1,p36:-1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:37854,nome:'One Piece',tipo:'tv',raridade:'medio',p:{p1:-1,p2:-1,p3:1,p4:1,p5:-1,p6:-1,p7:1,p8:-1,p9:1,p10:-1,p11:-1,p12:-1,p13:1,p14:1,p15:1,p16:-1,p17:1,p18:1,p19:1,p20:1,p21:-1,p22:1,p23:1,p24:-1,p25:1,p26:1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:1,p33:-1,p34:1,p35:1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:46260,nome:'Attack on Titan',tipo:'tv',raridade:'medio',p:{p1:-1,p2:1,p3:1,p4:1,p5:-1,p6:-1,p7:1,p8:-1,p9:-1,p10:1,p11:-1,p12:-1,p13:1,p14:1,p15:1,p16:1,p17:-1,p18:1,p19:1,p20:-1,p21:-1,p22:1,p23:1,p24:1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:-1,p31:1,p32:1,p33:-1,p34:1,p35:1,p36:1,p37:1,p38:1,p39:-1,p40:-1}},
-  {tmdb:1418,nome:'The Big Bang Theory',tipo:'tv',raridade:'comum',p:{p1:-1,p2:1,p3:-1,p4:-1,p5:1,p6:1,p7:-1,p8:-1,p9:1,p10:-1,p11:-1,p12:-1,p13:-1,p14:1,p15:-1,p16:-1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:-1,p23:-1,p24:-1,p25:1,p26:-1,p27:-1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:1408,nome:'House M.D.',tipo:'tv',raridade:'medio',p:{p1:-1,p2:-1,p3:-1,p4:-1,p5:1,p6:1,p7:-1,p8:-1,p9:1,p10:-1,p11:-1,p12:-1,p13:-1,p14:1,p15:1,p16:-1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:-1,p23:1,p24:-1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:-1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:4194,nome:'Prison Break',tipo:'tv',raridade:'medio',p:{p1:-1,p2:-1,p3:1,p4:-1,p5:1,p6:1,p7:-1,p8:-1,p9:-1,p10:1,p11:-1,p12:-1,p13:-1,p14:1,p15:1,p16:1,p17:1,p18:-1,p19:-1,p20:-1,p21:1,p22:-1,p23:1,p24:-1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:-1,p36:1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:44217,nome:'Vikings',tipo:'tv',raridade:'medio',p:{p1:-1,p2:1,p3:1,p4:1,p5:-1,p6:-1,p7:1,p8:1,p9:-1,p10:1,p11:-1,p12:-1,p13:1,p14:1,p15:1,p16:1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:1,p23:1,p24:-1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:1,p31:1,p32:-1,p33:-1,p34:-1,p35:-1,p36:-1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:87108,nome:'Chernobyl',tipo:'tv',raridade:'raro',p:{p1:-1,p2:1,p3:-1,p4:-1,p5:1,p6:1,p7:-1,p8:-1,p9:-1,p10:1,p11:-1,p12:1,p13:-1,p14:-1,p15:-1,p16:1,p17:-1,p18:-1,p19:-1,p20:-1,p21:-1,p22:-1,p23:-1,p24:1,p25:1,p26:-1,p27:1,p28:-1,p29:-1,p30:1,p31:-1,p32:-1,p33:-1,p34:-1,p35:-1,p36:-1,p37:1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:71912,nome:'The Witcher',tipo:'tv',raridade:'medio',p:{p1:-1,p2:1,p3:1,p4:1,p5:-1,p6:1,p7:1,p8:1,p9:-1,p10:1,p11:-1,p12:-1,p13:1,p14:1,p15:1,p16:-1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:1,p23:1,p24:1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:-1,p35:1,p36:-1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:100088,nome:'The Bear',tipo:'tv',raridade:'raro',p:{p1:-1,p2:1,p3:-1,p4:-1,p5:-1,p6:1,p7:-1,p8:-1,p9:1,p10:1,p11:-1,p12:1,p13:-1,p14:1,p15:-1,p16:-1,p17:1,p18:-1,p19:-1,p20:-1,p21:-1,p22:-1,p23:1,p24:1,p25:-1,p26:-1,p27:-1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:-1,p36:-1,p37:-1,p38:-1,p39:-1,p40:-1}},
-  {tmdb:1622,nome:'Sobrenatural',tipo:'tv',raridade:'medio',p:{p1:-1,p2:-1,p3:1,p4:1,p5:-1,p6:1,p7:1,p8:-1,p9:1,p10:1,p11:-1,p12:-1,p13:-1,p14:1,p15:1,p16:-1,p17:1,p18:-1,p19:1,p20:-1,p21:-1,p22:-1,p23:1,p24:1,p25:1,p26:-1,p27:1,p28:1,p29:-1,p30:-1,p31:1,p32:-1,p33:-1,p34:1,p35:1,p36:1,p37:-1,p38:-1,p39:-1,p40:-1}},
-];
-
-// ============================================================
-// ESTADO
-// ============================================================
-let USER=null, captchaResp=null, avSel=0, jogo=null, modoCadastro=false;
-
-// ============================================================
-// CAPTCHA — aparece só 1 vez
+// CAPTCHA — só 1 vez
 // ============================================================
 function gerarCod(){
   const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s=''; for(let i=0;i<6;i++) s+=c[Math.floor(Math.random()*c.length)]; return s;
+  let s='';for(let i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;
 }
-function initCaptcha(){
-  // Se já passou pelo captcha antes, pula direto
-  if(localStorage.getItem('darki_captcha_ok')==='1'){
+async function initCaptcha(){
+  if(localStorage.getItem('darki_ok')==='1'){
     const s=carregarSessao();
-    if(s){ USER=s; irTela('telaIntro'); setTimeout(iniciar,50); }
-    else irTela('telaIntro');
+    if(s){USER=s;await carregarBanco();iniciar();}
+    else{await carregarBanco();irTela('telaIntro');}
     return;
   }
   captchaResp=gerarCod();
@@ -647,49 +611,44 @@ function initCaptcha(){
 function verificarCaptcha(){
   const v=document.getElementById('captchaInp').value.trim().toUpperCase();
   if(v===captchaResp){
-    localStorage.setItem('darki_captcha_ok','1');
+    localStorage.setItem('darki_ok','1');
     const s=carregarSessao();
-    if(s){ USER=s; irTela('telaIntro'); setTimeout(iniciar,50); }
-    else irTela('telaIntro');
-  } else {
-    document.getElementById('captchaErr').textContent='Código errado! Tente novamente.';
+    carregarBanco().then(()=>{
+      if(s){USER=s;iniciar();}
+      else irTela('telaIntro');
+    });
+  }else{
+    document.getElementById('captchaErr').textContent='Código errado!';
     captchaResp=gerarCod();
     document.getElementById('captchaDisplay').textContent=captchaResp;
     document.getElementById('captchaInp').value='';
   }
 }
-document.getElementById('captchaInp').addEventListener('keydown',e=>{ if(e.key==='Enter') verificarCaptcha(); });
+document.getElementById('captchaInp').addEventListener('keydown',e=>{if(e.key==='Enter')verificarCaptcha();});
 
 // ============================================================
-// SESSÃO
+// CARREGAR BANCO DO BACKEND
 // ============================================================
-function salvarSessao(u){ localStorage.setItem('darki_user',JSON.stringify(u)); }
-function carregarSessao(){ try{const u=localStorage.getItem('darki_user');return u?JSON.parse(u):null;}catch{return null;} }
-function limparSessao(){ localStorage.removeItem('darki_user'); }
-
-// ============================================================
-// NOTIF
-// ============================================================
-function notif(txt,cor='var(--roxo)'){
-  const n=document.getElementById('notif');
-  n.textContent=txt;n.style.borderColor=cor;
-  n.classList.add('show');setTimeout(()=>n.classList.remove('show'),2800);
+async function carregarBanco(){
+  try{
+    const [rt,rp]=await Promise.all([fetch('/api/titulos'),fetch('/api/perguntas')]);
+    const dt=await rt.json();
+    PERGUNTAS=await rp.json();
+    BANCO=dt.titulos||[];
+    console.log('Banco carregado:',BANCO.length,'títulos,',PERGUNTAS.length,'perguntas');
+  }catch(e){console.error('Erro ao carregar banco:',e);}
 }
 
 // ============================================================
-// INTRO → LOGIN
+// INTRO / LOGIN
 // ============================================================
-function irParaLogin(){ irTela('telaLogin'); renderAvatares(); }
+function irParaLogin(){irTela('telaLogin');renderAvatares();}
 function renderAvatares(){
-  document.getElementById('avatarGrid').innerHTML=AVS.map((u,i)=>
-    `<img class="av${i===avSel?' sel':''}" src="${u}" onclick="selAv(${i})">`).join('');
+  document.getElementById('avatarGrid').innerHTML=AVS.map((u,i)=>`<img class="av${i===avSel?' sel':''}" src="${u}" onclick="selAv(${i})">`).join('');
 }
-function selAv(i){
-  avSel=i;
-  document.querySelectorAll('.av').forEach((el,j)=>el.classList.toggle('sel',j===i));
-}
+function selAv(i){avSel=i;document.querySelectorAll('.av').forEach((el,j)=>el.classList.toggle('sel',j===i));}
+
 function mostrarCadastro(){
-  modoCadastro=true;
   document.getElementById('senhaWrap').style.display='block';
   document.getElementById('btnEntrar').textContent='CRIAR CONTA';
   document.getElementById('btnEntrar').onclick=cadastrar;
@@ -698,26 +657,28 @@ function mostrarCadastro(){
 
 async function entrar(){
   const nick=document.getElementById('inputNick').value.trim();
-  if(!nick){ document.getElementById('loginErr').textContent='Digite seu apelido!'; return; }
+  if(!nick){document.getElementById('loginErr').textContent='Digite seu apelido!';return;}
   try{
     const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:nick})});
     const d=await r.json();
-    if(d.erro){ document.getElementById('loginErr').textContent=d.erro; return; }
-    USER={...d.usuario,avatarIdx:avSel}; salvarSessao(USER); iniciar();
-  }catch{ document.getElementById('loginErr').textContent='Erro de conexão!'; }
+    if(d.erro){document.getElementById('loginErr').textContent=d.erro;return;}
+    USER={...d.usuario,avatarIdx:avSel};salvarSessao(USER);iniciar();
+  }catch{document.getElementById('loginErr').textContent='Erro de conexão!';}
 }
+
 async function cadastrar(){
   const nick=document.getElementById('inputNick').value.trim();
   const senha=document.getElementById('inputSenha').value.trim();
-  if(!nick){ document.getElementById('loginErr').textContent='Digite seu apelido!'; return; }
-  if(senha.length!==4){ document.getElementById('loginErr').textContent='Senha deve ter 4 dígitos!'; return; }
+  if(!nick){document.getElementById('loginErr').textContent='Digite seu apelido!';return;}
+  if(senha.length!==4){document.getElementById('loginErr').textContent='Senha deve ter 4 dígitos!';return;}
   try{
     const r=await fetch('/api/cadastro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:nick,senha,avatarIdx:avSel})});
     const d=await r.json();
-    if(d.erro){ document.getElementById('loginErr').textContent=d.erro; return; }
-    USER=d.usuario; salvarSessao(USER); iniciar();
-  }catch{ document.getElementById('loginErr').textContent='Erro de conexão!'; }
+    if(d.erro){document.getElementById('loginErr').textContent=d.erro;return;}
+    USER=d.usuario;salvarSessao(USER);iniciar();
+  }catch{document.getElementById('loginErr').textContent='Erro de conexão!';}
 }
+
 function iniciar(){
   document.getElementById('header').classList.remove('hidden');
   document.getElementById('navbar').classList.remove('hidden');
@@ -725,8 +686,9 @@ function iniciar(){
   document.getElementById('hAv').src=AVS[USER.avatarIdx||0];
   irTela('telaJogar');
 }
+
 function sair(){
-  limparSessao(); USER=null;
+  limparSessao();USER=null;
   document.getElementById('header').classList.add('hidden');
   document.getElementById('navbar').classList.add('hidden');
   irTela('telaIntro');
@@ -740,51 +702,74 @@ function irTela(id){
   document.getElementById(id).classList.add('ativa');
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('ativo'));
   const m={telaJogar:'btnJogar',telaTop:'btnTop',telaRank:'btnRank',telaPerfil:'btnPerfil'};
-  if(m[id]) document.getElementById(m[id]).classList.add('ativo');
-  if(id==='telaJogar') iniciarJogo();
-  if(id==='telaTop') carregarTop();
-  if(id==='telaRank') carregarRank();
-  if(id==='telaPerfil') carregarPerfil();
+  if(m[id])document.getElementById(m[id]).classList.add('ativo');
+  if(id==='telaJogar')iniciarJogo();
+  if(id==='telaTop')carregarTop();
+  if(id==='telaRank')carregarRank();
+  if(id==='telaPerfil')carregarPerfil();
 }
 
 // ============================================================
 // JOGO — SISTEMA DE PONTUAÇÃO POR PESO
 // ============================================================
 function iniciarJogo(){
-  jogo={idx:0,scores:BANCO.map((_,i)=>({i,s:0})),feitas:[],max:20};
+  if(BANCO.length===0){
+    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">CARREGANDO BANCO...</div></div>`;
+    carregarBanco().then(()=>{if(BANCO.length>0)iniciarJogo();});
+    return;
+  }
+  jogo={
+    idx:0,
+    scores:BANCO.map((_,i)=>({i,s:0})),
+    feitas:[],
+    maxPergs:Math.min(20,PERGUNTAS.length),
+    confiancaAlta:false
+  };
   renderPerg();
 }
 
-function pergDiscriminante(){
+function pergMaisDiscriminante(){
   let melhor=null,melhorEq=-1;
-  for(const pg of PERGS){
-    if(jogo.feitas.includes(pg.id)) continue;
+  for(const pg of PERGUNTAS){
+    if(jogo.feitas.includes(pg.id))continue;
     let sim=0,nao=0;
     for(const sc of jogo.scores){
-      const peso=BANCO[sc.i].p[pg.id]||0;
-      if(peso>0) sim++; else if(peso<0) nao++;
+      const p=BANCO[sc.i]?.tags?.[pg.id]||0;
+      if(p>0)sim++;else if(p<0)nao++;
     }
     const eq=jogo.scores.length-Math.abs(sim-nao);
-    if(eq>melhorEq){ melhorEq=eq; melhor=pg; }
+    if(eq>melhorEq){melhorEq=eq;melhor=pg;}
   }
-  return melhor||PERGS.find(p=>!jogo.feitas.includes(p.id));
+  return melhor||PERGUNTAS.find(p=>!jogo.feitas.includes(p.id));
+}
+
+function verificarConfianca(){
+  if(jogo.idx<5)return false;
+  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
+  const diff=top[0].s-(top[1]?.s||0);
+  // Chuta cedo se diferença for grande o suficiente
+  return diff>=4;
 }
 
 function renderPerg(){
-  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
-  if(jogo.idx>=jogo.max||(jogo.idx>=8&&top[0].s-( top[1]?.s||0)>=5)){
-    mostrarResultado(); return;
+  // Verifica se pode chutar antes das 20 perguntas
+  if(jogo.idx>=jogo.maxPergs||verificarConfianca()){
+    mostrarResultado();return;
   }
-  const pg=pergDiscriminante();
-  if(!pg){ mostrarResultado(); return; }
-  const prog=Math.round((jogo.idx/jogo.max)*100);
+  const pg=pergMaisDiscriminante();
+  if(!pg){mostrarResultado();return;}
+  const prog=Math.round((jogo.idx/jogo.maxPergs)*100);
+  const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
+  const lider=BANCO[top[0].i];
+  const confianca=jogo.idx>=3?Math.min(99,Math.round(50+top[0].s*8)):0;
+
   document.getElementById('jogarConteudo').innerHTML=`
     <div class="jogo-topo">
-      <h2>🔮 O Gênio Pensa...</h2>
-      <p>Responda com sinceridade para melhores resultados.</p>
+      <h2>🔮 Estou Pensando...</h2>
+      <p>${jogo.idx>=3&&confianca>60?`Acho que sei... ${confianca}% de certeza`:'Responda com sinceridade para melhores resultados.'}</p>
     </div>
     <div class="barra-prog">
-      <div class="barra-info"><span>PERGUNTA ${jogo.idx+1} DE ${jogo.max}</span><span>${prog}%</span></div>
+      <div class="barra-info"><span>PERGUNTA ${jogo.idx+1} DE ${jogo.maxPergs}</span><span>${prog}%</span></div>
       <div class="barra"><div class="barra-fill" style="width:${prog}%"></div></div>
     </div>
     <div class="pergunta-card">
@@ -797,18 +782,19 @@ function renderPerg(){
       <button class="op" onclick="resp('${pg.id}',0)"><span class="op-ico">🤔</span>Não sei / Talvez</button>
       <button class="op" onclick="resp('${pg.id}',-.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
       <button class="op" onclick="resp('${pg.id}',-1)"><span class="op-ico">❌</span>NÃO, com certeza</button>
-    </div>`;
+    </div>
+    ${jogo.idx>=3&&confianca>80?`<div style="margin-top:12px;text-align:center"><button onclick="mostrarResultado()" style="background:none;border:1px solid #a855f7;color:#a855f7;padding:10px 20px;border-radius:10px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer">🔮 JÁ SEI A RESPOSTA!</button></div>`:''}`;
 }
 
 function resp(pgId,val){
   jogo.feitas.push(pgId);
   for(const sc of jogo.scores){
-    const peso=BANCO[sc.i].p[pgId]||0;
-    sc.s+=peso*val;
+    const p=BANCO[sc.i]?.tags?.[pgId]||0;
+    sc.s+=p*val;
   }
   jogo.idx++;
   document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">ANALISANDO...</div></div>`;
-  setTimeout(renderPerg,500);
+  setTimeout(renderPerg,400);
 }
 
 // ============================================================
@@ -817,39 +803,29 @@ function resp(pgId,val){
 async function mostrarResultado(){
   const top=[...jogo.scores].sort((a,b)=>b.s-a.s);
   const filme=BANCO[top[0].i];
+  if(!filme){
+    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">BANCO VAZIO! ADICIONE TÍTULOS.</div></div>`;
+    return;
+  }
+
   document.getElementById('jogarConteudo').innerHTML=`<div class="loading"><div class="spinner"></div><div class="loading-txt">CONSULTANDO AS SOMBRAS...</div></div>`;
 
-  let dados={};
-  try{
-    const r=await fetch(`/api/tmdb/${filme.tmdb}?tipo=${filme.tipo}`);
-    dados=await r.json();
-  }catch{}
-
-  const capa=dados.poster_path?`https://image.tmdb.org/t/p/w500${dados.poster_path}`:null;
-  const sinopse=dados.overview||'Uma obra inesquecível.';
-  const titulo=dados.title||dados.name||filme.nome;
-  const ano=(dados.release_date||dados.first_air_date||'').slice(0,4);
-
   let medIco,medCor,medNome,pts;
-  if(filme.raridade==='raro'){medIco='🥇';medCor='var(--ouro)';medNome='OURO — Título Raro!';pts=300;}
-  else if(filme.raridade==='medio'){medIco='🥈';medCor='var(--prata)';medNome='PRATA — Médio';pts=150;}
-  else{medIco='🥉';medCor='var(--bronze)';medNome='BRONZE — Comum';pts=50;}
+  if(filme.raridade==='raro'){medIco='🥇';medCor='#f59e0b';medNome='OURO — Título Raro!';pts=300;}
+  else if(filme.raridade==='medio'){medIco='🥈';medCor='#94a3b8';medNome='PRATA — Médio';pts=150;}
+  else{medIco='🥉';medCor='#b45309';medNome='BRONZE — Comum';pts=50;}
 
-  try{ await fetch('/api/resultado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER.username,tmdbId:filme.tmdb,nome:titulo,raridade:filme.raridade,pontos:pts,capa:capa||''})}); }catch{}
-
-  let comsHtml='<div style="color:var(--cinza2);font-size:13px;padding:8px 0">Seja o primeiro a comentar!</div>';
+  let comsHtml='<div style="color:#64748b;font-size:13px;padding:8px 0">Seja o primeiro a comentar!</div>';
   try{
-    const cr=await fetch(`/api/comentarios/${filme.tmdb}`);
+    const cr=await fetch(`/api/comentarios/${filme.id}`);
     const cd=await cr.json();
-    if(cd.length) comsHtml=cd.map(c=>`
-      <div class="com">
-        <img class="com-av" src="${AVS[c.avatarIdx||0]}">
-        <div class="com-balao"><div class="com-nick">@${c.username}</div><div class="com-texto">${c.texto}</div></div>
-      </div>`).join('');
+    if(cd.length)comsHtml=cd.map(c=>`
+      <div class="com"><img class="com-av" src="${AVS[c.avatarIdx||0]}">
+      <div class="com-balao"><div class="com-nick">@${c.username}</div><div class="com-texto">${c.texto}</div></div></div>`).join('');
   }catch{}
 
-  const scQ=encodeURIComponent(titulo+' trilha sonora soundtrack');
-  const ytQ=encodeURIComponent(titulo+' official soundtrack');
+  const ytId=filme.yt;
+  const ytQuery=encodeURIComponent(filme.nome+' trilha sonora oficial');
 
   document.getElementById('jogarConteudo').innerHTML=`
     <div class="barra-prog" style="margin-top:8px">
@@ -857,28 +833,26 @@ async function mostrarResultado(){
       <div class="barra"><div class="barra-fill" style="width:100%"></div></div>
     </div>
     <div class="resultado-card">
-      ${capa?`<img class="res-capa" src="${capa}" onerror="this.style.display='none'">`:`<div class="res-capa-ph">🎬</div>`}
+      ${filme.capa?`<img class="res-capa" src="${filme.capa}" onerror="this.style.display='none'">`:`<div class="res-capa-ph">🎬</div>`}
       <div class="res-corpo">
         <div class="res-label">🔮 O GÊNIO REVELA...</div>
-        <div class="res-nome">${titulo}</div>
+        <div class="res-nome">${filme.nome}</div>
         <div class="res-meta">
-          ${ano?`<span style="color:var(--cinza);font-size:13px">${ano}</span>`:''}
           <span class="badge">${filme.tipo==='movie'?'FILME':'SÉRIE'}</span>
-          <span class="badge" style="color:${medCor};border-color:${medCor};background:transparent">${filme.raridade.toUpperCase()}</span>
+          <span class="badge" style="color:${medCor};border-color:${medCor}">${filme.raridade.toUpperCase()}</span>
         </div>
-        <div class="res-sinopse">${sinopse}</div>
+        <div class="res-sinopse">${filme.sinopse||'Uma obra inesquecível.'}</div>
 
         <div class="player">
           <div class="player-topo">
-            <button class="play-btn" id="playBt" onclick="tocarMusica('${titulo}','${scQ}','${ytQ}')">▶</button>
+            <button class="play-btn" id="playBt" onclick="tocarMusica('${ytId||''}','${ytQuery}')">▶</button>
             <div class="player-info">
-              <div class="player-nome">🎵 Trilha Sonora — ${titulo}</div>
+              <div class="player-nome">🎵 Trilha — ${filme.nome}</div>
               <div class="player-fonte" id="pFonte">Clique para ouvir dentro do site</div>
             </div>
           </div>
           <div class="player-barra"><div class="player-prog" id="pProg"></div></div>
-          <iframe id="scFrame" class="sc-frame" height="80" scrolling="no" frameborder="no" allow="autoplay"></iframe>
-          <iframe id="ytFrame" class="yt-frame" frameborder="0" allow="autoplay;encrypted-media" allowfullscreen></iframe>
+          <iframe id="ytFrame" style="width:100%;height:0;border:none;display:none" frameborder="0" allow="autoplay;encrypted-media" allowfullscreen></iframe>
         </div>
 
         <div class="medalha">
@@ -891,8 +865,8 @@ async function mostrarResultado(){
         </div>
 
         <div class="btns-resultado">
-          <button class="btn-sim" onclick="confirmarAcerto(${filme.tmdb})">✅ ACERTOU!</button>
-          <button class="btn-nao" onclick="iniciarJogo()">❌ ERROU</button>
+          <button class="btn-sim" onclick="confirmarAcerto('${filme.id}','${filme.nome}','${filme.raridade}',${pts},'${filme.capa||''}')">✅ ACERTOU!</button>
+          <button class="btn-nao" onclick="abrirSugerir()">❌ ERROU</button>
         </div>
         <button class="btn-novojogo" onclick="iniciarJogo()">🔮 JOGAR NOVAMENTE</button>
 
@@ -900,74 +874,83 @@ async function mostrarResultado(){
           <div class="coms-titulo">COMENTÁRIOS</div>
           <div class="coms-lista" id="comsLista">${comsHtml}</div>
           <div class="com-linha">
-            <input class="com-inp" id="comInp" placeholder="Comente sobre ${titulo}...">
-            <button class="com-enviar" onclick="enviarCom(${filme.tmdb})">→</button>
+            <input class="com-inp" id="comInp" placeholder="Comente sobre ${filme.nome}...">
+            <button class="com-enviar" onclick="enviarCom('${filme.id}')">→</button>
           </div>
         </div>
       </div>
     </div>`;
 
-  USER.pontos=(USER.pontos||0)+pts;
-  USER.jogos=(USER.jogos||0)+1;
-  salvarSessao(USER);
+  if(USER){
+    USER.pontos=(USER.pontos||0)+pts;
+    USER.jogos=(USER.jogos||0)+1;
+    salvarSessao(USER);
+    try{await fetch('/api/resultado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER.username,tituloId:filme.id,nome:filme.nome,raridade:filme.raridade,pontos:pts,capa:filme.capa||'',acertou:false})});}catch{}
+  }
 }
 
 // ============================================================
-// MÚSICA — SoundCloud + fallback YouTube (toca no site)
+// MÚSICA — YouTube IFrame fixo
 // ============================================================
 let musicaOn=false;
-async function tocarMusica(titulo,scQ,ytQ){
+function tocarMusica(ytId,ytQuery){
   const btn=document.getElementById('playBt');
-  const sc=document.getElementById('scFrame');
   const yt=document.getElementById('ytFrame');
   const fonte=document.getElementById('pFonte');
   if(musicaOn){
-    sc.style.display='none';yt.style.display='none';
-    sc.src='';yt.src='';
+    yt.style.display='none';yt.src='';
     btn.textContent='▶';musicaOn=false;fonte.textContent='Clique para ouvir';return;
   }
-  btn.textContent='⏳';fonte.textContent='Buscando música...';
-  // Tenta SoundCloud
-  try{
-    const r=await fetch(`/api/soundcloud?q=${scQ}`);
-    const d=await r.json();
-    if(d.url){
-      sc.src=`https://w.soundcloud.com/player/?url=${encodeURIComponent(d.url)}&color=%238b5cf6&auto_play=true&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false`;
-      sc.style.display='block';
-      btn.textContent='⏸';musicaOn=true;fonte.textContent='🎵 Tocando no SoundCloud';return;
-    }
-  }catch{}
-  // Fallback YouTube IFrame
-  try{
-    const r=await fetch(`/api/youtube?q=${ytQ}`);
-    const d=await r.json();
-    if(d.videoId){
-      yt.src=`https://www.youtube.com/embed/${d.videoId}?autoplay=1&controls=1`;
-      yt.style.display='block';yt.style.height='80px';
-      btn.textContent='⏸';musicaOn=true;fonte.textContent='▶ Tocando no YouTube';return;
-    }
-  }catch{}
-  fonte.textContent='Música não encontrada 😔';btn.textContent='▶';
+  // Se tem ID fixo, usa direto. Senão abre busca no YT
+  if(ytId&&ytId!=='null'&&ytId.length===11){
+    yt.src=`https://www.youtube.com/embed/${ytId}?autoplay=1&controls=1`;
+    yt.style.display='block';yt.style.height='80px';
+    btn.textContent='⏸';musicaOn=true;fonte.textContent='▶ YouTube';
+  }else{
+    // Abre YouTube em nova aba com busca
+    window.open(`https://www.youtube.com/results?search_query=${ytQuery}`,'_blank');
+    fonte.textContent='🔍 Abrindo YouTube...';
+    setTimeout(()=>{fonte.textContent='Clique para ouvir';},3000);
+  }
 }
 
-async function confirmarAcerto(tmdbId){
-  try{ await fetch('/api/acerto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER.username,tmdbId})}); }catch{}
-  USER.acertos=(USER.acertos||0)+1;salvarSessao(USER);
-  notif('✅ Acerto confirmado!','var(--verde)');
+async function confirmarAcerto(tituloId,nome,raridade,pts,capa){
+  if(USER){
+    USER.acertos=(USER.acertos||0)+1;salvarSessao(USER);
+    try{await fetch('/api/resultado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER.username,tituloId,nome,raridade,pontos:0,capa,acertou:true})});}catch{}
+  }
+  notif('✅ Acerto confirmado!','#10b981');
 }
 
-async function enviarCom(tmdbId){
+function abrirSugerir(){
+  document.getElementById('modalSugerir').classList.remove('hidden');
+  document.getElementById('sugerirInp').focus();
+  document.getElementById('sugerirMsg').textContent='';
+}
+function fecharSugerir(){document.getElementById('modalSugerir').classList.add('hidden');}
+
+async function enviarSugestao(){
+  const nome=document.getElementById('sugerirInp').value.trim();
+  if(!nome){document.getElementById('sugerirMsg').textContent='Digite o nome!';document.getElementById('sugerirMsg').style.color='#ef4444';return;}
+  try{
+    const r=await fetch('/api/sugerir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,username:USER?.username||'anon'})});
+    const d=await r.json();
+    document.getElementById('sugerirMsg').textContent=d.msg||d.erro||'Enviado!';
+    document.getElementById('sugerirMsg').style.color=d.sucesso?'#10b981':'#ef4444';
+    if(d.sucesso)setTimeout(fecharSugerir,2000);
+  }catch{document.getElementById('sugerirMsg').textContent='Erro de conexão!';}
+}
+
+async function enviarCom(tituloId){
   const inp=document.getElementById('comInp');
   const txt=inp.value.trim();if(!txt)return;
   try{
-    const r=await fetch('/api/comentario',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER.username,avatarIdx:USER.avatarIdx||0,tmdbId,texto:txt})});
+    const r=await fetch('/api/comentario',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:USER?.username||'anon',avatarIdx:USER?.avatarIdx||0,tituloId,texto:txt})});
     const d=await r.json();
     if(d.sucesso){
       document.getElementById('comsLista').innerHTML+=`
-        <div class="com">
-          <img class="com-av" src="${AVS[USER.avatarIdx||0]}">
-          <div class="com-balao"><div class="com-nick">@${USER.username}</div><div class="com-texto">${txt}</div></div>
-        </div>`;
+        <div class="com"><img class="com-av" src="${AVS[USER?.avatarIdx||0]}">
+        <div class="com-balao"><div class="com-nick">@${USER?.username||'anon'}</div><div class="com-texto">${txt}</div></div></div>`;
       inp.value='';
     }
   }catch{}
@@ -981,7 +964,7 @@ async function carregarTop(){
   el.innerHTML=`<div class="loading"><div class="spinner"></div></div>`;
   try{
     const r=await fetch('/api/maisJogados');const d=await r.json();
-    if(!d.length){el.innerHTML=`<div class="vazio"><img src="https://i.imgur.com/8bV9ZuV.png" onerror="this.src='https://via.placeholder.com/150x150/10131e/8b5cf6?text=?'"><div class="vazio-t">Nenhum filme jogado</div><div class="vazio-s">Jogue para aparecer aqui!</div></div>`;return;}
+    if(!d.length){el.innerHTML=`<div class="vazio"><div class="vazio-t">Nenhum filme jogado ainda</div><div class="vazio-s">Jogue para aparecer aqui!</div></div>`;return;}
     el.innerHTML=d.map(f=>`
       <div class="top-card">
         ${f.capa?`<img class="top-capa" src="${f.capa}" onerror="this.style.display='none'">`:`<div class="top-capa-ph">🎬</div>`}
@@ -992,8 +975,8 @@ async function carregarTop(){
             <div class="top-stat">✅ <b>${f.acertos||0}</b> acertos</div>
           </div>
           <div class="top-music">
-            <button class="top-play" onclick="window.open('https://soundcloud.com/search?q=${encodeURIComponent((f.nome||'')+' soundtrack')}','_blank')">▶</button>
-            <div class="top-music-nome">🎵 Trilha Sonora — ${f.nome}</div>
+            <button class="top-play" onclick="window.open('https://www.youtube.com/results?search_query=${encodeURIComponent((f.nome||'')+' trilha sonora')}','_blank')">▶</button>
+            <div class="top-music-nome">🎵 Trilha — ${f.nome}</div>
           </div>
         </div>
       </div>`).join('');
@@ -1008,15 +991,12 @@ async function carregarRank(){
   el.innerHTML=`<div class="loading"><div class="spinner"></div></div>`;
   try{
     const r=await fetch('/api/ranking');const d=await r.json();
-    if(!d.length){el.innerHTML=`<div class="vazio"><img src="https://i.imgur.com/8bV9ZuV.png" onerror="this.src='https://via.placeholder.com/150x150/10131e/8b5cf6?text=?'"><div class="vazio-t">Sem jogadores ainda</div><div class="vazio-s">Seja o primeiro!</div></div>`;return;}
+    if(!d.length){el.innerHTML=`<div class="vazio"><div class="vazio-t">Sem jogadores ainda</div><div class="vazio-s">Seja o primeiro!</div></div>`;return;}
     el.innerHTML=d.map((u,i)=>`
       <div class="rank-item">
         <div class="rank-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${i<3?['🥇','🥈','🥉'][i]:i+1}</div>
         <img class="rank-av" src="${AVS[u.avatarIdx||0]}">
-        <div class="rank-info">
-          <div class="rank-nick">@${u.username}</div>
-          <div class="rank-pts">${u.pontos||0} PTS &nbsp;·&nbsp; ${u.jogos||0} JOGOS</div>
-        </div>
+        <div class="rank-info"><div class="rank-nick">@${u.username}</div><div class="rank-pts">${u.pontos||0} PTS · ${u.jogos||0} JOGOS</div></div>
         <div class="rank-emoji">${(u.pontos||0)>=1000?'🥇':(u.pontos||0)>=300?'🥈':'🥉'}</div>
       </div>`).join('');
   }catch{el.innerHTML=`<div class="vazio"><div class="vazio-t">Erro ao carregar</div></div>`;}
@@ -1034,30 +1014,29 @@ function carregarPerfil(){
   document.getElementById('pAcertos').textContent=USER.acertos||0;
   const pts=USER.pontos||0;
   let meds=[];
-  if(pts>=50) meds.push({i:'🥉',n:'Bronze',c:'var(--bronze)'});
-  if(pts>=300) meds.push({i:'🥈',n:'Prata',c:'var(--prata)'});
-  if(pts>=1000) meds.push({i:'🥇',n:'Ouro',c:'var(--ouro)'});
-  if(!meds.length) meds.push({i:'🔮',n:'Iniciante',c:'var(--cinza2)'});
+  if(pts>=50)meds.push({i:'🥉',n:'Bronze',c:'#b45309'});
+  if(pts>=300)meds.push({i:'🥈',n:'Prata',c:'#94a3b8'});
+  if(pts>=1000)meds.push({i:'🥇',n:'Ouro',c:'#f59e0b'});
+  if(!meds.length)meds.push({i:'🔮',n:'Iniciante',c:'#64748b'});
   document.getElementById('perfilMeds').innerHTML=meds.map(m=>`<div class="med-chip">${m.i}<span style="color:${m.c}">${m.n}</span></div>`).join('');
+}
+
+// ============================================================
+// SOBRE
+// ============================================================
+function abrirSobre(){
+  document.getElementById('modalSobre').classList.remove('hidden');
+  fetch('/api/info').then(r=>r.json()).then(d=>{
+    document.getElementById('infoTitulos').textContent=`🎬 ${d.totalTitulos} títulos no banco · v${d.versao}`;
+  }).catch(()=>{});
 }
 
 // ============================================================
 // INIT
 // ============================================================
-window.addEventListener('DOMContentLoaded',function(){
-  try{ initCaptcha(); }
-  catch(e){
-    document.body.innerHTML=`<div style="padding:30px;font-family:monospace;color:#ff4444;background:#07080f;min-height:100vh">
-      <h2 style="color:#fff;margin-bottom:16px">❌ Erro detectado</h2>
-      <pre style="font-size:13px;white-space:pre-wrap;color:#ff6666">${e.message}\n\n${e.stack}</pre>
-    </div>`;
-  }
-});
-window.addEventListener('error',function(e){
-  document.body.innerHTML=`<div style="padding:30px;font-family:monospace;color:#ff4444;background:#07080f;min-height:100vh">
-    <h2 style="color:#fff;margin-bottom:16px">❌ Erro JS</h2>
-    <pre style="font-size:13px;white-space:pre-wrap;color:#ff6666">${e.message}\nLinha: ${e.lineno}</pre>
-  </div>`;
+window.addEventListener('DOMContentLoaded',()=>{
+  window.addEventListener('error',e=>{console.error('JS Error:',e.message,e.lineno);});
+  initCaptcha();
 });
 </script>
 </body>
