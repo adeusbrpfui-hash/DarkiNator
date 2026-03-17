@@ -715,130 +715,152 @@ function irTela(id){
 async function iniciarJogo(){
   document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">PREPARANDO O GÊNIO...</div></div>`;
   await carregarBanco();
-  if(BANCO.length===0){
-    document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="pensando-txt">Erro ao carregar banco!</div></div>`;
-    return;
-  }
-  jogo={
-    idx:0,
-    respostas:[], // [{id, txt, resposta}]
-    maxPergs:20,
-    extras:0
-  };
+  jogo={ idx:0, respostas:[], maxPergs:30 };
   await renderPerg();
 }
 
+const FRASES_ESPERA = [
+  'Consultando os astros...',
+  'Vasculhando as sombras...',
+  'O gênio está meditando...',
+  'Analisando o universo cinematográfico...',
+  'Decifrando os mistérios...',
+  'Lendo a mente do jogador...',
+  'Calculando probabilidades...',
+  'Invocando o conhecimento...',
+];
+
+function fraseAleatoria(){ return FRASES_ESPERA[Math.floor(Math.random()*FRASES_ESPERA.length)]; }
+
 async function renderPerg(){
-  const limite = jogo.maxPergs + jogo.extras;
-
-  // Verifica confiança antes de perguntar mais
-  if(jogo.idx >= 5){
-    const confianca = calcularConfiancaLocal();
-    if(confianca >= 90 || jogo.idx >= limite){
-      await mostrarResultado();
-      return;
-    }
-    // Libera +10 perguntas se ainda não tem certeza
-    if(jogo.idx >= jogo.maxPergs && jogo.extras === 0){
-      jogo.extras = 10;
-    }
-  }
-
-  // Mostra spinner enquanto IA pensa
+  // Animação de espera enquanto busca pergunta
   document.getElementById('jogarConteudo').innerHTML=`
     <div class="pensando">
       <div class="spinner"></div>
-      <div class="pensando-txt">O GÊNIO ESTÁ PENSANDO...</div>
-      <div style="font-size:11px;color:#64748b;margin-top:8px">Pergunta ${jogo.idx+1}${jogo.extras>0?' (extra)':''}</div>
+      <div class="pensando-txt" id="fraseEspera">${fraseAleatoria()}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:8px">Pergunta ${jogo.idx+1} de ${jogo.maxPergs}</div>
     </div>`;
 
+  // Troca a frase a cada 2s enquanto espera
+  const intervalo = setInterval(()=>{
+    const el = document.getElementById('fraseEspera');
+    if(el) el.textContent = fraseAleatoria();
+  }, 2000);
+
   try {
-    // Busca próxima pergunta via IA
     const r = await fetch('/api/jogo/pergunta', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ respostas: jogo.respostas })
     });
     const d = await r.json();
-    const pg = d.pergunta;
-    const numCandidatos = d.candidatos || BANCO.length;
+    clearInterval(intervalo);
 
-    if(!pg){
-      await mostrarResultado();
+    // Se IA falhou temporariamente, espera 3s e tenta novamente
+    if(d.aguardando){
+      document.getElementById('jogarConteudo').innerHTML=`
+        <div class="pensando">
+          <div class="spinner"></div>
+          <div class="pensando-txt">O gênio está consultando forças superiores...</div>
+          <div style="font-size:11px;color:#64748b;margin-top:8px">Tentando novamente em instantes...</div>
+        </div>`;
+      setTimeout(()=>renderPerg(), 3000);
       return;
     }
 
-    const prog = Math.round((jogo.idx / (jogo.maxPergs+jogo.extras)) * 100);
-    const confianca = jogo.idx >= 5 ? calcularConfiancaLocal() : 0;
-    const fase = d.fase || 2;
-    const faseLabel = fase===1 ? '📋 Base (' + (5-jogo.idx) + ' restantes)' : numCandidatos <= 3 ? '🔬 Ultra Específico' : numCandidatos <= 10 ? '🎯 Focado' : '🌐 IA Analisando';
+    const pg = d.pergunta;
+    if(!pg){ await mostrarResultado(); return; }
+
+    // Se chegou ao limite de perguntas
+    if(jogo.idx >= jogo.maxPergs){ await mostrarResultado(); return; }
+
+    const fase = d.fase || 1;
+    const bloco = d.bloco || '';
+    const numAtual = d.num || (jogo.idx+1);
+    const total = d.total || 30;
+    const prog = Math.round((numAtual/total)*100);
+    const candidatos = d.candidatos || '?';
+
+    // Label e cor por fase
+    const faseInfo = {
+      1: {label:'📋 TIPO E FORMATO', cor:'#64748b'},
+      2: {label:'🎭 GÊNERO', cor:'#3b82f6'},
+      3: {label:'⚡ CARACTERÍSTICAS', cor:'#f59e0b'},
+      4: {label:'🔬 ANÁLISE IA', cor:'#a855f7'},
+    }[fase] || {label:'🔮', cor:'#a855f7'};
 
     document.getElementById('jogarConteudo').innerHTML=`
       <div class="jogo-topo">
         <h2>🔮 Estou Pensando...</h2>
-        <p>${confianca >= 70 ? `Tenho ${confianca}% de certeza...` : faseLabel + ' · ' + numCandidatos + ' candidatos'}</p>
+        <p style="color:${faseInfo.cor};font-size:12px;font-family:'Orbitron',monospace;letter-spacing:1px">${faseInfo.label}</p>
+        ${fase===4?`<p style="font-size:11px;color:#64748b">${candidatos} candidatos restantes</p>`:''}
       </div>
       <div class="barra-prog">
-        <div class="barra-info"><span>PERGUNTA ${jogo.idx+1}${jogo.extras>0?' (EXTRA)':''}</span><span>${prog}%</span></div>
+        <div class="barra-info">
+          <span>PERGUNTA ${numAtual} DE ${total}</span>
+          <span>${prog}%</span>
+        </div>
         <div class="barra"><div class="barra-fill" style="width:${prog}%"></div></div>
       </div>
       <div class="pergunta-card">
-        <div class="perg-num">${faseLabel} · QUESTÃO ${jogo.idx+1}</div>
+        <div class="perg-num" style="color:${faseInfo.cor}">${faseInfo.label}</div>
         <div class="perg-txt">${pg.txt}</div>
       </div>
       <div class="ops">
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',1)"><span class="op-ico">✅</span>SIM, com certeza</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0.5)"><span class="op-ico">🟡</span>Provavelmente sim</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0)"><span class="op-ico">🤔</span>Não sei / Talvez</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -0.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -1)"><span class="op-ico">❌</span>NÃO, com certeza</button>
-      </div>
-      ${confianca>=85?`<div style="margin-top:12px;text-align:center"><button onclick="mostrarResultado()" style="background:none;border:1px solid #a855f7;color:#a855f7;padding:10px 20px;border-radius:10px;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer">🔮 JÁ SEI! REVELAR</button></div>`:''}`;
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'").replace(/"/g,'\"')}',1)"><span class="op-ico">✅</span>SIM, com certeza</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'").replace(/"/g,'\"')}',0.5)"><span class="op-ico">🟡</span>Provavelmente sim</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'").replace(/"/g,'\"')}',0)"><span class="op-ico">🤔</span>Não sei / Talvez</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'").replace(/"/g,'\"')}', -0.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
+        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'").replace(/"/g,'\"')}', -1)"><span class="op-ico">❌</span>NÃO, com certeza</button>
+      </div>`;
 
   } catch(e) {
-    // Fallback se API falhar
-    console.log('Erro pergunta IA, usando fallback:', e.message);
-    const feitas = new Set(jogo.respostas.map(r=>r.id));
-    const pg = PERGUNTAS.find(p=>!feitas.has(p.id));
-    if(!pg){ await mostrarResultado(); return; }
+    clearInterval(intervalo);
+    console.log('Erro renderPerg:', e.message);
+    // Tenta novamente após 3s
     document.getElementById('jogarConteudo').innerHTML=`
-      <div class="pergunta-card" style="margin:20px 16px">
-        <div class="perg-num">🌐 QUESTÃO ${jogo.idx+1}</div>
-        <div class="perg-txt">${pg.txt}</div>
-      </div>
-      <div class="ops">
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',1)"><span class="op-ico">✅</span>SIM</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0.5)"><span class="op-ico">🟡</span>Provavelmente sim</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}',0)"><span class="op-ico">🤔</span>Talvez</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -0.5)"><span class="op-ico">🟠</span>Provavelmente não</button>
-        <button class="op" onclick="resp('${pg.id}','${pg.txt.replace(/'/g,"\'")}', -1)"><span class="op-ico">❌</span>NÃO</button>
+      <div class="pensando">
+        <div class="spinner"></div>
+        <div class="pensando-txt">Reconectando...</div>
       </div>`;
+    setTimeout(()=>renderPerg(), 3000);
   }
-}
-
-function calcularConfiancaLocal(){
-  if(jogo.respostas.length < 3) return 0;
-  // Calcula scores locais para estimar confiança
-  const scores = BANCO.map((t,i)=>({i,s:0}));
-  for(const r of jogo.respostas){
-    for(const sc of scores){
-      const p = BANCO[sc.i]?.tags?.[r.id]||0;
-      sc.s += p * r.resposta;
-    }
-  }
-  scores.sort((a,b)=>b.s-a.s);
-  const diff = scores[0].s - (scores[1]?.s||0);
-  return Math.min(99, Math.round(40 + diff*10));
 }
 
 async function resp(pgId, pgTxt, val){
   jogo.respostas.push({ id:pgId, txt:pgTxt, resposta:val });
   jogo.idx++;
-  await renderPerg();
+  if(jogo.idx >= jogo.maxPergs){
+    await mostrarResultado();
+  } else {
+    await renderPerg();
+  }
 }
 
+
 async function mostrarResultado(){
-  document.getElementById('jogarConteudo').innerHTML=`<div class="loading"><div class="spinner"></div><div class="loading-txt">CONSULTANDO AS SOMBRAS...</div></div>`;
+  // Animação de processamento final com delay dramático
+  const frasesFinal = [
+    'Consultando as sombras...',
+    'Analisando padrões...',
+    'O gênio está calculando...',
+    'Revelação iminente...',
+  ];
+  let fi = 0;
+  document.getElementById('jogarConteudo').innerHTML=`
+    <div class="pensando" style="padding:60px 20px">
+      <div class="spinner" style="width:60px;height:60px;border-width:4px"></div>
+      <div class="pensando-txt" id="fraseRevelacao" style="font-size:18px;margin-top:20px">${frasesFinal[0]}</div>
+      <div style="font-size:12px;color:#64748b;margin-top:8px">Processando ${jogo.respostas.length} respostas...</div>
+    </div>`;
+  const intFinal = setInterval(()=>{
+    fi=(fi+1)%frasesFinal.length;
+    const el=document.getElementById('fraseRevelacao');
+    if(el) el.textContent=frasesFinal[fi];
+  },800);
+  // Delay de 2.5s para dar sensação de processamento real
+  await new Promise(r=>setTimeout(r,2500));
+  clearInterval(intFinal);
 
   let filme = null;
 
