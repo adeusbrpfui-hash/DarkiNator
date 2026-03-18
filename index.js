@@ -554,85 +554,112 @@ async function buscarCandidatosTMDB(respostas) {
 }
 
 // ============================================================
-// REVELAR RESULTADO — IA analisa e decide o título
+// REVELAR RESULTADO — pontuação pura, sem IA
 // ============================================================
 app.post('/api/jogo/revelar', async (req, res) => {
   const { respostas } = req.body;
+  const R = respostas || [];
 
   try {
-    // Busca candidatos no TMDB
-    const candidatos = await buscarCandidatosTMDB(respostas || []);
+    // 1. Busca candidatos no TMDB filtrados pelas respostas
+    const candidatosTMDB = await buscarCandidatosTMDB(R);
 
-    // Banco local como candidatos adicionais
+    // 2. Banco local
     const bancoLocal = lerTitulos().titulos;
 
-    if (!OR_KEY || candidatos.length === 0) {
-      // Fallback: usa banco local com pontuação
-      const resultado = adivinharPeloBanco(respostas || [], bancoLocal);
-      return res.json({ titulo: resultado, fonte: 'banco_local' });
-    }
+    // 3. Combina candidatos — TMDB + banco local
+    const todosCandidatos = [...bancoLocal];
 
-    // OpenRouter decide qual é o título
-    const historico = (respostas || []).map(r => `"${r.txt}" → ${r.resposta > 0.3 ? 'SIM' : r.resposta < -0.3 ? 'NÃO' : 'TALVEZ'}`).join('\n');
-    const listaCandidatos = candidatos.slice(0, 8).map((c, i) => `${i+1}. ${c.nome} (${c.tipo}): ${c.sinopse.slice(0, 100)}`).join('\n');
-
-    const prompt = `Você é o DarkiNator. Com base nas respostas do jogador, identifique qual título ele está pensando.
-
-Respostas do jogador:
-${historico}
-
-Candidatos possíveis:
-${listaCandidatos}
-
-Qual é o título? Responda SOMENTE com JSON:
-{"numero": 1, "nome": "Nome do título", "certeza": 85}
-(numero = posição na lista acima, certeza = % de confiança)`;
-
-    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OR_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://darkinatror.up.railway.app'
-      },
-      body: JSON.stringify({ model: OR_MODEL, max_tokens: 100, messages: [{ role: 'user', content: prompt }] })
-    });
-
-    const rd = await resp.json();
-    const txt = rd.choices?.[0]?.message?.content || '';
-    const match = txt.match(/\{[\s\S]*?\}/);
-
-    if (match) {
-      const decisao = JSON.parse(match[0]);
-      const idx = (decisao.numero || 1) - 1;
-      const candidatoEscolhido = candidatos[idx] || candidatos[0];
-
-      if (candidatoEscolhido) {
-        // Adiciona ao banco se não existe
-        adicionarAoBancoSeNovo(candidatoEscolhido, respostas || []);
-
-        return res.json({
-          titulo: {
-            ...candidatoEscolhido,
-            raridade: 'medio',
-            certeza: decisao.certeza || 75
-          },
-          fonte: 'ia_tmdb'
+    // Adiciona do TMDB que não estão no banco local
+    for (const c of candidatosTMDB) {
+      if (!todosCandidatos.find(t => t.tmdb === c.tmdb)) {
+        todosCandidatos.push({
+          id: 'tmdb_' + c.tmdb,
+          tmdb: c.tmdb,
+          nome: c.nome,
+          tipo: c.tipo,
+          raridade: 'medio',
+          capa: c.capa,
+          sinopse: c.sinopse,
+          tags: {}
         });
       }
     }
 
-    // Fallback banco local
-    const resultado = adivinharPeloBanco(respostas || [], bancoLocal);
-    res.json({ titulo: resultado, fonte: 'banco_local' });
+    // 4. Pontua cada candidato baseado nas respostas
+    const sim  = id => R.find(r => r.id === id && r.resposta >= 0.5);
+    const nao  = id => R.find(r => r.id === id && r.resposta <= -0.5);
+
+    const scores = todosCandidatos.map(t => {
+      let score = 0;
+      const tags = t.tags || {};
+
+      // Pontuação por tags existentes
+      for (const r of R) {
+        const tagVal = tags[r.id];
+        if (tagVal === undefined || tagVal === 0) continue;
+        // Match perfeito: jogador disse SIM e tag é 1, ou NÃO e tag é -1
+        if ((r.resposta >= 0.5 && tagVal === 1) || (r.resposta <= -0.5 && tagVal === -1)) {
+          score += 2;
+        }
+        // Contradição: jogador disse SIM e tag é -1, ou NÃO e tag é 1
+        if ((r.resposta >= 0.5 && tagVal === -1) || (r.resposta <= -0.5 && tagVal === 1)) {
+          score -= 3;
+        }
+      }
+
+      // Bônus se está no TMDB filtrado (passou nos filtros de busca)
+      const noTMDB = candidatosTMDB.find(c => c.tmdb === t.tmdb);
+      if (noTMDB) score += 5;
+
+      // Bônus por tipo correto
+      if (sim('filme') && t.tipo === 'movie') score += 2;
+      if (nao('filme') && t.tipo === 'tv') score += 2;
+      if (sim('animacao') && tags.animacao === 1) score += 3;
+      if (sim('anime') && tags.anime === 1) score += 3;
+      if (sim('americano') && tags.americano === 1) score += 2;
+      if (sim('japao') && tags.japao === 1) score += 2;
+      if (sim('brasil') && tags.brasil === 1) score += 2;
+      if (sim('infantil') && tags.infantil === 1) score += 2;
+
+      return { titulo: t, score };
+    });
+
+    // 5. Ordena por score
+    scores.sort((a, b) => b.score - a.score);
+    const melhor = scores[0];
+
+    if (!melhor || melhor.score < -5) {
+      // Nenhum candidato bom — usa o mais popular do TMDB
+      if (candidatosTMDB.length > 0) {
+        const c = candidatosTMDB[0];
+        return res.json({ titulo: { ...c, id: 'tmdb_'+c.tmdb, raridade: 'medio', certeza: 50 }, fonte: 'tmdb' });
+      }
+      return res.json({ titulo: null });
+    }
+
+    // Calcula certeza baseada na diferença entre 1º e 2º
+    const segundo = scores[1]?.score || 0;
+    const diff = melhor.score - segundo;
+    const certeza = Math.min(99, Math.max(40, Math.round(50 + diff * 8)));
+
+    // Auto-adiciona ao banco se veio do TMDB
+    if (melhor.titulo.id?.startsWith('tmdb_')) {
+      adicionarAoBancoSeNovo(candidatosTMDB.find(c => c.tmdb === melhor.titulo.tmdb) || melhor.titulo, R);
+    }
+
+    res.json({
+      titulo: { ...melhor.titulo, certeza },
+      fonte: melhor.titulo.id?.startsWith('tmdb_') ? 'tmdb' : 'banco_local'
+    });
 
   } catch(e) {
-    console.log('Erro revelar:', e.message);
-    const bancoLocal = lerTitulos().titulos;
-    const resultado = adivinharPeloBanco(respostas || [], bancoLocal);
-    res.json({ titulo: resultado, fonte: 'banco_local', erro: e.message });
+    console.error('Erro revelar:', e.message);
+    const resultado = adivinharPeloBanco(R, lerTitulos().titulos);
+    res.json({ titulo: resultado, fonte: 'fallback' });
   }
 });
+
 
 // Adivinha pelo banco local (fallback)
 function adivinharPeloBanco(respostas, banco) {
