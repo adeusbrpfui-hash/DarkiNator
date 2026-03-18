@@ -323,162 +323,178 @@ function BANCO_TAMANHO() {
 
 app.post('/api/jogo/pergunta', async (req, res) => {
   const { respostas } = req.body;
-  const feitas = new Set((respostas || []).map(r => r.id));
-  const num = (respostas || []).length;
-  const sim = id => (respostas||[]).find(r => r.id === id && r.resposta >= 0.5);
+  const R = respostas || [];
+  const feitas = new Set(R.map(r => r.id));
+  const num = R.length;
 
-  // 15 PERGUNTAS FIXAS EM ORDEM — nunca bugam
-  const FIXAS = [
-    {id:'filme',      txt:'É um filme (não uma série)?'},
-    {id:'animacao',   txt:'É animação ou desenho animado?'},
-    {id:'pos2010',    txt:'Foi lançado depois de 2010?'},
-    {id:'infantil',   txt:'É voltado para crianças ou adolescentes?'},
-    {id:'americano',  txt:'É produção americana (EUA)?'},
-    {id:'anime',      txt:'É anime japonês?'},
-    {id:'fantasia',   txt:'Tem elementos de fantasia ou magia?'},
-    {id:'acao',       txt:'É de ação ou aventura?'},
-    {id:'terror',     txt:'É terror ou suspense?'},
-    {id:'comedia',    txt:'É comédia com muito humor?'},
-    {id:'poderes',    txt:'O protagonista tem poderes especiais?'},
-    {id:'protmulher', txt:'A protagonista principal é mulher?'},
-    {id:'maisdeuma',  txt:'Tem mais de uma temporada ou sequência?'},
-    {id:'classico',   txt:'É considerado um grande clássico?'},
-    {id:'vilao',      txt:'Tem um vilão muito marcante?'},
+  // Helpers
+  const sim  = id => R.find(r => r.id === id && r.resposta >= 0.5);
+  const nao  = id => R.find(r => r.id === id && r.resposta <= -0.5);
+  const talvez = id => R.find(r => r.id === id);
+
+  // Retorna pergunta se ainda não foi feita
+  function p(id, txt) {
+    if (!feitas.has(id)) return { id, txt };
+    return null;
+  }
+
+  // ============================================================
+  // BLOCO 1 — TIPO FUNDAMENTAL (sempre primeiras 5)
+  // ============================================================
+  const b1 = [
+    p('filme',    'É um filme (não uma série)?'),
+    p('animacao', 'É animação ou desenho animado?'),
+    p('anime',    'É anime japonês?'),
+    p('pos2010',  'Foi lançado depois de 2010?'),
+    p('infantil', 'É voltado para crianças ou adolescentes?'),
   ];
+  const prox1 = b1.find(Boolean);
+  if (prox1) return res.json({ pergunta: prox1, fase: 1, bloco: 'Tipo', num: b1.indexOf(prox1)+1, total: 60 });
 
-  const proxFixa = FIXAS.find(p => !feitas.has(p.id));
-  if (proxFixa) {
-    const idx = FIXAS.indexOf(proxFixa);
-    const fase = idx < 5 ? 1 : idx < 10 ? 2 : 3;
-    console.log('[FIXO] Pergunta', idx+1, ':', proxFixa.id);
-    return res.json({ pergunta: proxFixa, fase, bloco: ['Tipo','Gênero','Características'][fase-1], num: idx+1, total: 30 });
+  // ============================================================
+  // BLOCO 2 — ORIGEM (adapta baseado no que já sabe)
+  // Não pergunta o que já foi eliminado
+  // ============================================================
+  const b2 = [];
+  if (!sim('americano') && !nao('americano')) b2.push(p('americano', 'É produção americana (EUA)?'));
+  if (!sim('japao') && !nao('japao') && !sim('anime')) b2.push(p('japao', 'É japonês ou se passa no Japão?'));
+  if (!sim('brasil') && !nao('brasil')) b2.push(p('brasil', 'É brasileiro ou se passa no Brasil?'));
+  if (!sim('anime') && !nao('anime') && !sim('americano') && !sim('brasil')) b2.push(p('europeu', 'É produção europeia (Reino Unido, França, Espanha, etc)?'));
+  if (!sim('coreano') && !nao('coreano') && !sim('americano')) b2.push(p('coreano', 'É coreano (K-drama ou K-movie)?'));
+  const prox2 = b2.filter(Boolean).find(x => !feitas.has(x.id));
+  if (prox2) return res.json({ pergunta: prox2, fase: 2, bloco: 'Origem', num: 6+b2.filter(Boolean).findIndex(x=>x.id===prox2.id), total: 60 });
+
+  // ============================================================
+  // BLOCO 3 — ÉPOCA (adapta: não pergunta passado se já disse futuro)
+  // ============================================================
+  const b3 = [];
+  if (!sim('pos2010') && !nao('ante2000')) b3.push(p('ante2000', 'Foi lançado antes do ano 2000?'));
+  // Só pergunta época histórica se não é claramente contemporâneo
+  if (!sim('pos2010') || sim('historico')) {
+    b3.push(p('historico', 'A história se passa no passado (não nos dias atuais)?'));
   }
-
-  // FASE IA — perguntas 16-30
-  console.log('[IA] Iniciando fase IA. Respostas recebidas:', num);
-  
-  const candidatos = await buscarCandidatosTMDB(respostas || []);
-  console.log('[IA] Candidatos TMDB:', candidatos.length);
-
-  if (!OR_KEY) {
-    console.log('[IA] Sem OR_KEY, revelando');
-    return res.json({ pergunta: null, revelar: true });
+  if (sim('historico') || (!sim('pos2010') && !sim('ante2000'))) {
+    b3.push(p('epoca_medieval', 'A história se passa na Idade Média?'));
+    b3.push(p('epoca_guerra', 'A história se passa durante uma guerra mundial?'));
+    b3.push(p('epoca_80s', 'A história se passa nos anos 80?'));
   }
-
-  // Todas as 15 respostas para a IA ter contexto completo
-  const todasRespostas = (respostas||[]).map(r =>
-    '- ' + r.txt + ' → ' + (r.resposta >= 0.5 ? 'SIM' : r.resposta <= -0.5 ? 'NÃO' : 'TALVEZ')
-  ).join('\n');
-
-  const listaCands = candidatos.slice(0,8).map((c,i) =>
-    (i+1) + '. ' + c.nome + ' (' + (c.tipo==='movie'?'filme':'série') + '): ' + (c.sinopse||'').slice(0,80)
-  ).join('\n');
-
-  // Textos das perguntas já feitas para evitar similares
-  const perguntasFeitas = (respostas||[]).map(r => r.txt).join(' | ');
-  const ids = [...feitas].join(',');
-
-  const prompt = candidatos.length > 0
-    ? `Adivinhe qual filme/série o jogador pensa entre estes candidatos:
-${listaCands}
-
-PERGUNTAS JÁ FEITAS E RESPOSTAS:
-${todasRespostas}
-
-IDs PROIBIDOS: ${ids}
-TEXTOS SIMILARES PROIBIDOS: ${perguntasFeitas}
-
-Crie 1 pergunta SIM/NÃO NOVA e ESPECÍFICA que diferencie esses candidatos.
-NÃO repita nem parafrase perguntas já feitas acima.
-Foque em: personagens icônicos, objetos únicos, locais específicos, características visuais.
-JSON apenas: {"id":"id_unico_snake","txt":"Pergunta específica?"}`
-    : `Adivinha filme/série. Perguntas já feitas: ${todasRespostas}. IDs proibidos: ${ids}. Crie 1 pergunta SIM/NÃO completamente diferente das acima. JSON: {"id":"id_unico","txt":"Pergunta?"}`;
-
-  console.log('[IA] Candidatos:', candidatos.length, '| Prompt:', prompt.length, 'chars');
-
-  const MODELOS = [
-    'deepseek/deepseek-r1:free',            // melhor raciocínio
-    'meta-llama/llama-3.3-70b-instruct:free', // muito bom e rápido
-    'qwen/qwen-2.5-72b-instruct:free',      // Qwen 72B
-    'mistralai/mistral-7b-instruct:free',   // fallback leve
-    'google/gemma-3-12b-it:free',           // fallback extra
-  ];
-
-  for (const modelo of MODELOS) {
-    try {
-      console.log('[IA] Tentando:', modelo);
-      const r = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app', 'X-Title': 'DarkiNator' },
-        body: JSON.stringify({ model: modelo, max_tokens: 200, messages: [{ role: 'user', content: prompt }] })
-      }, 15000);
-      const d = await r.json();
-      const txt = d.choices?.[0]?.message?.content || '';
-      console.log('[IA]', modelo, 'status:', r.status, 'resp:', txt.slice(0,100));
-      if (r.status === 429 || r.status === 404 || !r.ok) { console.log('[IA] Pulando por status:', r.status); continue; }
-      const jsonMatch = txt.match(/\{[^{}]*\}/);
-      if (jsonMatch) {
-        const perg = JSON.parse(jsonMatch[0]);
-        if (perg.id && perg.txt) {
-          const idLimpo = perg.id.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/__+/g,'_').slice(0,40);
-          
-          // Verifica se ID já foi usado
-          if (!idLimpo || feitas.has(idLimpo)) {
-            console.log('[IA] ID repetido:', idLimpo);
-            continue;
-          }
-          
-          // Verifica similaridade de texto com perguntas já feitas
-          const txtNovo = perg.txt.toLowerCase().trim();
-          const textosFeitos = (respostas||[]).map(r => r.txt.toLowerCase().trim());
-          const eSimilar = textosFeitos.some(t => {
-            // Verifica se 60% das palavras são iguais
-            const palavrasNovas = txtNovo.split(' ').filter(p => p.length > 3);
-            const palavrasFeitas = t.split(' ').filter(p => p.length > 3);
-            const iguais = palavrasNovas.filter(p => palavrasFeitas.includes(p)).length;
-            return palavrasNovas.length > 0 && (iguais / palavrasNovas.length) >= 0.6;
-          });
-          
-          if (eSimilar) {
-            console.log('[IA] Pergunta similar a uma já feita, pulando:', txtNovo.slice(0,50));
-            continue;
-          }
-          
-          perg.id = idLimpo;
-          console.log('[IA] Pergunta OK:', JSON.stringify(perg));
-          return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
-        }
-      }
-    } catch(e) { console.log('[IA] Erro:', modelo, e.message); }
+  if (!sim('historico') && !nao('futuro')) {
+    b3.push(p('futuro', 'A história se passa no futuro?'));
   }
-  // IA falhou — usa pergunta fixa do banco como fallback
-  // NUNCA revela o resultado por falha da IA
-  console.log('[IA] Todos os modelos falharam, usando pergunta fixa de fallback');
-  const FALLBACK_PERGS = [
-    {id:'espaco',     txt:'A história acontece no espaço?'},
-    {id:'baseadofatos',txt:'É baseado em fatos reais?'},
-    {id:'sobrevive',  txt:'O protagonista sobrevive até o final?'},
-    {id:'adaptacao',  txt:'É baseado em livro, quadrinho ou jogo?'},
-    {id:'musical',    txt:'É um musical com personagens cantando?'},
-    {id:'brasil',     txt:'É brasileiro ou se passa no Brasil?'},
-    {id:'japao',      txt:'É japonês ou se passa no Japão?'},
-    {id:'espiao',     txt:'Tem espiões ou agentes secretos?'},
-    {id:'zumbi',      txt:'Tem zumbis?'},
-    {id:'vampiro',    txt:'Tem vampiros?'},
-    {id:'escola',     txt:'Se passa principalmente numa escola?'},
-    {id:'vinganca',   txt:'A vingança é motivação principal?'},
-    {id:'distopia',   txt:'É distopia futurista?'},
-    {id:'survival',   txt:'Envolve sobrevivência extrema?'},
-    {id:'robos',      txt:'Tem robôs ou inteligência artificial?'},
-  ];
-  const fallback = FALLBACK_PERGS.find(p => !feitas.has(p.id));
-  if (fallback) {
-    console.log('[FALLBACK] Usando pergunta fixa:', fallback.id);
-    return res.json({ pergunta: fallback, fase: 4, bloco: 'Fallback', candidatos: candidatos.length, num: num+1, total: 30 });
+  const prox3 = b3.filter(Boolean).find(x => x && !feitas.has(x.id));
+  if (prox3) return res.json({ pergunta: prox3, fase: 3, bloco: 'Época', num: num+1, total: 60 });
+
+  // ============================================================
+  // BLOCO 4 — GÊNERO PRINCIPAL (adapta baseado no público)
+  // ============================================================
+  const b4 = [];
+  // Ação/aventura — relevante para todos
+  b4.push(p('acao', 'É de ação ou aventura?'));
+  b4.push(p('fantasia', 'Tem elementos de fantasia ou magia?'));
+  b4.push(p('scifi', 'Tem ficção científica (naves, robôs, tecnologia avançada)?'));
+  // Terror só se não for infantil
+  if (!sim('infantil')) b4.push(p('terror', 'É terror ou suspense psicológico?'));
+  else b4.push(p('comedia', 'É comédia com muito humor?'));
+  // Romance
+  if (!sim('infantil')) b4.push(p('romance', 'O romance é parte central da história?'));
+  b4.push(p('crime', 'Envolve crime, máfia ou mundo criminoso?'));
+  const prox4 = b4.filter(Boolean).find(x => x && !feitas.has(x.id));
+  if (prox4) return res.json({ pergunta: prox4, fase: 4, bloco: 'Gênero', num: num+1, total: 60 });
+
+  // ============================================================
+  // BLOCO 5 — PROTAGONISTA (adapta baseado no que sabe)
+  // ============================================================
+  const b5 = [];
+  b5.push(p('protmulher', 'A protagonista principal é mulher?'));
+  b5.push(p('poderes', 'O protagonista tem poderes especiais ou sobrenaturais?'));
+  b5.push(p('superheroi', 'O protagonista usa um traje ou fantasia de super-herói?'));
+  b5.push(p('antiheroi', 'O protagonista faz coisas moralmente questionáveis?'));
+  b5.push(p('orfao', 'O protagonista é órfão ou perdeu os pais?'));
+  b5.push(p('criancas', 'Os protagonistas são crianças ou adolescentes?'));
+  b5.push(p('grupo', 'Há um grupo de protagonistas (não apenas 1)?'));
+  const prox5 = b5.filter(Boolean).find(x => x && !feitas.has(x.id));
+  if (prox5) return res.json({ pergunta: prox5, fase: 5, bloco: 'Protagonista', num: num+1, total: 60 });
+
+  // ============================================================
+  // BLOCO 6 — CARACTERÍSTICAS DA TRAMA
+  // ============================================================
+  const b6 = [];
+  b6.push(p('vilao', 'Tem um vilão muito marcante e memorável?'));
+  b6.push(p('finaltriste', 'O final é triste ou ambíguo?'));
+  b6.push(p('reviravolta', 'Tem uma reviravolta surpreendente?'));
+  b6.push(p('viagemtempo', 'Envolve viagem no tempo?'));
+  b6.push(p('survival', 'Envolve sobrevivência extrema contra a morte?'));
+  b6.push(p('vinganca', 'A vingança é a motivação principal do protagonista?'));
+  b6.push(p('distopia', 'É uma distopia (sociedade opressiva do futuro)?'));
+  b6.push(p('maisdeuma', 'Tem mais de uma temporada ou sequência?'));
+  b6.push(p('classico', 'É considerado um grande clássico cultural?'));
+  b6.push(p('baseadofatos', 'É baseado em fatos ou pessoas reais?'));
+  const prox6 = b6.filter(Boolean).find(x => x && !feitas.has(x.id));
+  if (prox6) return res.json({ pergunta: prox6, fase: 6, bloco: 'Trama', num: num+1, total: 60 });
+
+  // ============================================================
+  // BLOCO 7 — ELEMENTOS ESPECÍFICOS (afunila muito)
+  // ============================================================
+  const b7 = [];
+  // Fantasia/magia — só se confirmou fantasia
+  if (sim('fantasia') || sim('poderes') || sim('animacao')) {
+    b7.push(p('magia', 'Tem feitiçaria ou magia como elemento central?'));
+    b7.push(p('dragoes', 'Tem dragões ou criaturas mitológicas?'));
+    b7.push(p('elfos_anoes', 'Tem elfos, anões, orcs ou raças fantásticas?'));
+    b7.push(p('escola_magia', 'Os personagens estudam magia em alguma escola?'));
   }
-  // Esgotou tudo — aí sim revela
-  console.log('[FALLBACK] Sem mais perguntas disponíveis, revelando');
-  res.json({ pergunta: null, revelar: true, candidatos: candidatos.length });
+  // Sci-fi — só se confirmou
+  if (sim('scifi') || sim('futuro')) {
+    b7.push(p('espaco', 'A história acontece principalmente no espaço?'));
+    b7.push(p('robos', 'Tem robôs ou inteligência artificial como personagem?'));
+    b7.push(p('aliens', 'Tem alienígenas como personagem importante?'));
+    b7.push(p('nave_espacial', 'Os personagens viajam em nave espacial?'));
+  }
+  // Terror — só se confirmou
+  if (sim('terror')) {
+    b7.push(p('zumbi', 'Tem zumbis?'));
+    b7.push(p('vampiro', 'Tem vampiros?'));
+    b7.push(p('sobrenatural', 'O terror é sobrenatural (fantasmas, demônios)?'));
+    b7.push(p('slasher', 'Tem um assassino mascarado perseguindo vítimas?'));
+  }
+  // Crime — só se confirmou
+  if (sim('crime')) {
+    b7.push(p('mafia', 'Envolve máfia ou crime organizado?'));
+    b7.push(p('policial', 'Tem investigação policial ou detetive?'));
+    b7.push(p('espiao', 'Tem espiões ou agentes secretos?'));
+    b7.push(p('assalto', 'O crime principal é um assalto ou roubo planejado?'));
+  }
+  // Animação — só se confirmou
+  if (sim('animacao') || sim('anime')) {
+    b7.push(p('studio_ghibli', 'É do Studio Ghibli (Hayao Miyazaki)?'));
+    b7.push(p('disney', 'É da Disney ou Pixar?'));
+    b7.push(p('shonen', 'É shonen (anime para jovens com batalhas)?'));
+    b7.push(p('musical_animacao', 'Os personagens cantam músicas na história?'));
+  }
+  // Geral
+  b7.push(p('escola', 'Se passa principalmente numa escola?'));
+  b7.push(p('musical', 'É um musical com personagens cantando?'));
+  b7.push(p('esporte', 'O esporte é tema central da história?'));
+  b7.push(p('trilhafamosa', 'Tem trilha sonora muito famosa e icônica?'));
+  b7.push(p('oscar', 'Ganhou ou foi indicado ao Oscar?'));
+  b7.push(p('adaptacao', 'É baseado em livro, quadrinho ou jogo famoso?'));
+  b7.push(p('franquia', 'Faz parte de uma franquia com muitos filmes/séries?'));
+  b7.push(p('familia_tema', 'A família é o tema central da história?'));
+  b7.push(p('amizade_tema', 'A amizade entre os personagens é o tema central?'));
+  b7.push(p('guerra_tema', 'A guerra é o tema central?'));
+  b7.push(p('sobrevive', 'O protagonista sobrevive até o final?'));
+  b7.push(p('longo', 'Dura mais de 2 horas (filmes) ou mais de 4 temporadas?'));
+  b7.push(p('naohuman', 'Tem personagens não-humanos importantes (animais, aliens, etc)?'));
+  b7.push(p('posapoc', 'O mundo foi destruído ou está em colapso?'));
+  b7.push(p('mitologia', 'Envolve mitologia (grega, nórdica, egípcia, etc)?'));
+  b7.push(p('danca', 'Tem cenas de dança importantes?'));
+  b7.push(p('comedia_b7', 'É principalmente uma comédia?'));
+  const prox7 = b7.filter(Boolean).find(x => x && !feitas.has(x.id));
+  if (prox7) return res.json({ pergunta: prox7, fase: 7, bloco: 'Específico', num: num+1, total: 60 });
+
+  // Sem mais perguntas — revela
+  console.log('[ARVORE] Todas perguntas feitas:', num);
+  res.json({ pergunta: null, revelar: true });
 });
 
 
