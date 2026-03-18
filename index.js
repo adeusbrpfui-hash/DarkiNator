@@ -1,4 +1,7 @@
 const express = require('express');
+const { Aki } = require('aki-api');
+
+const { Akinator, AkinatorAnswer } = require('@aqul/akinator-api');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -31,6 +34,8 @@ try {
 }
 
 const app = express();
+
+// Sessões do Akinator em memória (uma por jogador)
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
@@ -1057,6 +1062,25 @@ app.get('/api/maisJogados', (req, res) => {
   const db = lerDB();
   res.json([...(db.resultados||[])].sort((a,b)=>(b.jogos||0)-(a.jogos||0)).slice(0,10));
 });
+// Busca título no TMDB por nome (usado pelo Akinator para pegar capa)
+app.get('/api/buscarTMDB', async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.json({});
+  try {
+    const r = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=pt-BR`);
+    const d = await r.json();
+    const item = d.results?.[0];
+    if (!item) return res.json({});
+    res.json({
+      id: 'tmdb_' + item.id,
+      nome: item.title || item.name || q,
+      capa: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+      sinopse: item.overview || '',
+      tipo: item.media_type || 'movie'
+    });
+  } catch(e) { res.json({}); }
+});
+
 app.get('/api/info', (req, res) => {
   const t = lerTitulos();
   const p = lerPergs();
@@ -1146,6 +1170,198 @@ async function expandirPerguntas() {
     setTimeout(() => expandirPerguntas(), 60 * 60 * 1000);
   }
 }
+
+
+// ============================================================
+// ROTAS DO AKINATOR — motor real de perguntas
+// ============================================================
+
+// Inicia nova sessão
+app.post('/api/aki/start', async (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) return res.json({ erro: 'Informe sessionId' });
+
+  try {
+    // Encerra sessão anterior se existir
+    if (sessoes.has(sessionId)) sessoes.delete(sessionId);
+
+    const aki = new Akinator({ region: 'pt', childMode: false });
+    await aki.start();
+
+    sessoes.set(sessionId, aki);
+
+    console.log('[AKI] Nova sessão:', sessionId, '| Pergunta:', aki.question);
+    res.json({
+      sucesso: true,
+      pergunta: aki.question,
+      progresso: aki.progress,
+      step: aki.currentStep || 0
+    });
+  } catch(e) {
+    console.log('[AKI] Erro ao iniciar:', e.message);
+    // Tenta região en como fallback
+    try {
+      const aki = new Akinator({ region: 'en', childMode: false });
+      await aki.start();
+      sessoes.set(sessionId, aki);
+      res.json({ sucesso: true, pergunta: aki.question, progresso: aki.progress, step: 0, idioma: 'en' });
+    } catch(e2) {
+      res.json({ erro: 'Akinator indisponível: ' + e2.message });
+    }
+  }
+});
+
+// Responde uma pergunta
+app.post('/api/aki/responder', async (req, res) => {
+  const { sessionId, resposta } = req.body;
+  // resposta: 0=Sim, 1=Não, 2=Não sei, 3=Provavelmente sim, 4=Provavelmente não
+
+  const aki = sessoes.get(sessionId);
+  if (!aki) return res.json({ erro: 'Sessão não encontrada. Reinicie o jogo.' });
+
+  try {
+    await aki.answer(resposta);
+
+    if (aki.isWin) {
+      console.log('[AKI] Ganhou! Resposta:', aki.sugestion_name || aki.name);
+      sessoes.delete(sessionId);
+      return res.json({
+        ganhou: true,
+        nome: aki.sugestion_name || aki.name || 'Desconhecido',
+        descricao: aki.sugestion_desc || aki.description || '',
+        foto: aki.sugestion_photo || aki.photo || '',
+        progresso: 100
+      });
+    }
+
+    res.json({
+      sucesso: true,
+      pergunta: aki.question,
+      progresso: aki.progress,
+      step: aki.currentStep || 0
+    });
+  } catch(e) {
+    console.log('[AKI] Erro ao responder:', e.message);
+    // Limpa sessão com erro
+    sessoes.delete(sessionId);
+    res.json({ erro: 'Erro no Akinator: ' + e.message });
+  }
+});
+
+// Volta uma pergunta
+app.post('/api/aki/voltar', async (req, res) => {
+  const { sessionId } = req.body;
+  const aki = sessoes.get(sessionId);
+  if (!aki) return res.json({ erro: 'Sessão não encontrada' });
+  try {
+    await aki.cancelAnswer();
+    res.json({ sucesso: true, pergunta: aki.question, progresso: aki.progress });
+  } catch(e) {
+    res.json({ erro: e.message });
+  }
+});
+
+// Limpa sessão expirada
+app.post('/api/aki/encerrar', (req, res) => {
+  const { sessionId } = req.body;
+  sessoes.delete(sessionId);
+  res.json({ sucesso: true });
+});
+
+// Limpa sessões antigas a cada 30 min
+setInterval(() => {
+  if (sessoes.size > 100) {
+    const keys = [...sessoes.keys()].slice(0, 50);
+    keys.forEach(k => sessoes.delete(k));
+    console.log('[AKI] Limpeza de sessões antigas');
+  }
+}, 30 * 60 * 1000);
+
+
+// Busca rápida no TMDB por nome
+app.get('/api/tmdb/buscar', async (req, res) => {
+  const nome = req.query.nome;
+  if (!nome) return res.json({});
+  try {
+    const r = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(nome)}&language=pt-BR`);
+    const d = await r.json();
+    const item = d.results?.[0];
+    if (!item) return res.json({});
+    res.json({
+      capa: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+      sinopse: item.overview || '',
+      nome: item.title || item.name || nome
+    });
+  } catch(e) { res.json({}); }
+});
+
+// ============================================================
+// ROTAS AKINATOR — Motor de perguntas externo
+// ============================================================
+
+// Inicia nova sessão
+app.post('/api/aki/iniciar', async (req, res) => {
+  const { sessaoId } = req.body;
+  try {
+    const aki = new Aki({ region: 'pt', childMode: false });
+    await aki.start();
+    sessoes.set(sessaoId, aki);
+    console.log('[AKI] Sessão iniciada:', sessaoId, '| Pergunta:', aki.question);
+    res.json({
+      sucesso: true,
+      pergunta: aki.question,
+      progresso: aki.progress,
+      passo: aki.step
+    });
+  } catch(e) {
+    console.log('[AKI] Erro iniciar:', e.message);
+    res.json({ erro: e.message });
+  }
+});
+
+// Responde uma pergunta
+app.post('/api/aki/responder', async (req, res) => {
+  const { sessaoId, resposta } = req.body;
+  // resposta: 0=sim, 1=provavelmente sim, 2=nao sei, 3=provavelmente nao, 4=nao
+  try {
+    const aki = sessoes.get(sessaoId);
+    if (!aki) return res.json({ erro: 'Sessão não encontrada' });
+
+    await aki.step(resposta);
+
+    // Verifica se tem sugestão
+    if (aki.progress >= 80 || aki.step >= 20) {
+      await aki.win();
+      const palpite = aki.answers?.[0];
+      if (palpite) {
+        sessoes.delete(sessaoId);
+        return res.json({
+          revelar: true,
+          nome: palpite.name,
+          descricao: palpite.description,
+          capa: palpite.absolute_picture_path || '',
+          ranking: palpite.ranking
+        });
+      }
+    }
+
+    res.json({
+      pergunta: aki.question,
+      progresso: aki.progress,
+      passo: aki.step
+    });
+  } catch(e) {
+    console.log('[AKI] Erro responder:', e.message);
+    res.json({ erro: e.message });
+  }
+});
+
+// Cancela sessão
+app.post('/api/aki/cancelar', (req, res) => {
+  const { sessaoId } = req.body;
+  sessoes.delete(sessaoId);
+  res.json({ sucesso: true });
+});
 
 // ============================================================
 // START
