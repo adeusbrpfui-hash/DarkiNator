@@ -631,12 +631,17 @@ document.getElementById('captchaInp').addEventListener('keydown',e=>{if(e.key===
 // ============================================================
 async function carregarBanco(){
   try{
-    const [rt,rp]=await Promise.all([fetch('/api/titulos'),fetch('/api/perguntas')]);
-    const dt=await rt.json();
-    PERGUNTAS=await rp.json();
-    BANCO=dt.titulos||[];
-    console.log('Banco carregado:',BANCO.length,'títulos,',PERGUNTAS.length,'perguntas');
-  }catch(e){console.error('Erro ao carregar banco:',e);}
+    const [rt,rp]=await Promise.all([
+      fetch('/api/titulos').then(r=>r.json()),
+      fetch('/api/perguntas').then(r=>r.json())
+    ]);
+    BANCO=rt.titulos||[];
+    PERGUNTAS=rp||[];
+    console.log('Banco:',BANCO.length,'títulos,',PERGUNTAS.length,'perguntas');
+  }catch(e){
+    console.error('Erro banco:',e);
+    // Continua mesmo sem banco
+  }
 }
 
 // ============================================================
@@ -716,33 +721,38 @@ async function iniciarJogo(){
   document.getElementById('jogarConteudo').innerHTML=`<div class="pensando"><div class="spinner"></div><div class="pensando-txt">PREPARANDO O GÊNIO...</div></div>`;
   await carregarBanco();
 
-  // Gera ID único de sessão
   jogo = {
     sessaoId: 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2),
     passo: 0,
     respostas: [],
-    modoAki: true
+    modoAki: false,
+    idx: 0
   };
 
-  // Inicia sessão no Akinator
+  // Tenta Akinator com timeout de 8s
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
     const r = await fetch('/api/aki/iniciar', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ sessaoId: jogo.sessaoId })
+      body: JSON.stringify({ sessaoId: jogo.sessaoId }),
+      signal: ctrl.signal
     });
+    clearTimeout(timer);
     const d = await r.json();
+    console.log('[AKI] Resposta iniciar:', JSON.stringify(d).slice(0,100));
     if (d.sucesso && d.pergunta) {
+      jogo.modoAki = true;
       renderPergAki(d.pergunta, d.progresso, d.passo);
       return;
     }
+    console.log('[AKI] Sem pergunta, usando árvore');
   } catch(e) {
-    console.log('[AKI] Falhou, usando árvore local:', e.message);
+    console.log('[AKI] Erro/timeout, usando árvore:', e.message);
   }
 
-  // Fallback: árvore local
-  jogo.modoAki = false;
-  jogo.idx = 0;
+  // Árvore local diretamente
   await renderPerg();
 }
 
