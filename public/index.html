@@ -756,20 +756,11 @@ async function renderPerg(){
     const d = await r.json();
     clearInterval(intervalo);
 
-    console.log('[JOGO] Resposta:', JSON.stringify(d).slice(0,150));
-
     const pg = d.pergunta;
 
-    // Se não tem pergunta (IA falhou), tenta de novo — NUNCA revela por falha da IA
-    if(!pg){
-      console.log('[JOGO] IA falhou, tentando novamente em 4s...');
-      document.getElementById('jogarConteudo').innerHTML=`
-        <div class="pensando">
-          <div class="spinner"></div>
-          <div class="pensando-txt" id="fraseEspera">${fraseAleatoria()}</div>
-          <div style="font-size:11px;color:#64748b;margin-top:8px">O gênio está consultando forças superiores...</div>
-        </div>`;
-      setTimeout(()=>renderPerg(), 4000);
+    // Sem pergunta = árvore esgotada, revela resultado
+    if(!pg || d.revelar){
+      await mostrarResultado();
       return;
     }
 
@@ -783,13 +774,16 @@ async function renderPerg(){
     const prog = Math.round((numAtual/total)*100);
     const candidatos = d.candidatos || '?';
 
-    // Label e cor por fase
+    // Label e cor por fase da árvore
     const faseInfo = {
-      1: {label:'📋 TIPO E FORMATO', cor:'#64748b'},
-      2: {label:'🎭 GÊNERO', cor:'#3b82f6'},
-      3: {label:'⚡ CARACTERÍSTICAS', cor:'#f59e0b'},
-      4: {label:'🔬 ANÁLISE IA', cor:'#a855f7'},
-    }[fase] || {label:'🔮', cor:'#a855f7'};
+      1: {label:'📋 TIPO',         cor:'#64748b'},
+      2: {label:'🌍 ORIGEM',       cor:'#3b82f6'},
+      3: {label:'📅 ÉPOCA',        cor:'#10b981'},
+      4: {label:'🎭 GÊNERO',       cor:'#f59e0b'},
+      5: {label:'👤 PROTAGONISTA', cor:'#ef4444'},
+      6: {label:'📖 TRAMA',        cor:'#8b5cf6'},
+      7: {label:'🔬 ESPECÍFICO',   cor:'#a855f7'},
+    }[fase] || {label:'🔮 ANALISANDO', cor:'#a855f7'};
 
     document.getElementById('jogarConteudo').innerHTML=`
       <div class="jogo-topo">
