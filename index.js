@@ -365,45 +365,43 @@ app.post('/api/jogo/pergunta', async (req, res) => {
     return res.json({ pergunta: null, revelar: true });
   }
 
-  const historico = (respostas||[]).slice(-6)
-    .map(r => r.txt.slice(0,25) + ': ' + (r.resposta>=0.5?'SIM':r.resposta<=-0.5?'NAO':'?'))
-    .join(' | ');
+  // Todas as 15 respostas para a IA ter contexto completo
+  const todasRespostas = (respostas||[]).map(r =>
+    '- ' + r.txt + ' → ' + (r.resposta >= 0.5 ? 'SIM' : r.resposta <= -0.5 ? 'NÃO' : 'TALVEZ')
+  ).join('\n');
 
-  const listaCands = candidatos.slice(0,6).map((c,i) =>
-    (i+1) + '.' + c.nome + '(' + (c.tipo==='movie'?'filme':'serie') + '): ' + (c.sinopse||'').slice(0,60)
-  ).join(' || ');
+  const listaCands = candidatos.slice(0,8).map((c,i) =>
+    (i+1) + '. ' + c.nome + ' (' + (c.tipo==='movie'?'filme':'série') + '): ' + (c.sinopse||'').slice(0,80)
+  ).join('\n');
 
+  // Textos das perguntas já feitas para evitar similares
+  const perguntasFeitas = (respostas||[]).map(r => r.txt).join(' | ');
   const ids = [...feitas].join(',');
 
-  // Chain of Thought — IA raciocina antes de responder
   const prompt = candidatos.length > 0
-    ? `Voce e um genio que adivinha filmes e series.
-
-CANDIDATOS POSSIVEIS:
+    ? `Adivinhe qual filme/série o jogador pensa entre estes candidatos:
 ${listaCands}
 
-O JOGADOR JA RESPONDEU:
-${historico}
+PERGUNTAS JÁ FEITAS E RESPOSTAS:
+${todasRespostas}
 
-IDS JA USADOS (nao repita): ${ids}
+IDs PROIBIDOS: ${ids}
+TEXTOS SIMILARES PROIBIDOS: ${perguntasFeitas}
 
-Pense passo a passo:
-1. Quais caracteristicas UNICAS cada candidato tem?
-2. Qual pergunta SIM/NAO eliminaria mais candidatos de uma vez?
-3. A pergunta e coerente com as respostas anteriores?
-
-Responda SOMENTE com JSON (sem explicacao):
-{"id":"snake_id","txt":"Pergunta especifica sobre os candidatos?"}`
-    : `Voce adivinha filmes/series. Jogador respondeu: ${historico}. IDs proibidos: ${ids}. Pense: qual caracteristica ainda nao foi perguntada e eliminaria mais titulos? JSON: {"id":"snake_id","txt":"Pergunta?"}`;
+Crie 1 pergunta SIM/NÃO NOVA e ESPECÍFICA que diferencie esses candidatos.
+NÃO repita nem parafrase perguntas já feitas acima.
+Foque em: personagens icônicos, objetos únicos, locais específicos, características visuais.
+JSON apenas: {"id":"id_unico_snake","txt":"Pergunta específica?"}`
+    : `Adivinha filme/série. Perguntas já feitas: ${todasRespostas}. IDs proibidos: ${ids}. Crie 1 pergunta SIM/NÃO completamente diferente das acima. JSON: {"id":"id_unico","txt":"Pergunta?"}`;
 
   console.log('[IA] Candidatos:', candidatos.length, '| Prompt:', prompt.length, 'chars');
 
   const MODELOS = [
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'deepseek/deepseek-r1:free',
-    'mistralai/mistral-7b-instruct:free',
-    'qwen/qwen-2.5-7b-instruct:free',
-    'google/gemma-3-12b-it:free',
+    'deepseek/deepseek-r1:free',            // melhor raciocínio
+    'meta-llama/llama-3.3-70b-instruct:free', // muito bom e rápido
+    'qwen/qwen-2.5-72b-instruct:free',      // Qwen 72B
+    'mistralai/mistral-7b-instruct:free',   // fallback leve
+    'google/gemma-3-12b-it:free',           // fallback extra
   ];
 
   for (const modelo of MODELOS) {
