@@ -365,14 +365,38 @@ app.post('/api/jogo/pergunta', async (req, res) => {
     return res.json({ pergunta: null, revelar: true });
   }
 
-  const historico = (respostas||[]).slice(-8)
-    .map(r => `${r.txt.slice(0,30)}: ${r.resposta>=0.5?'SIM':r.resposta<=-0.5?'NAO':'?'}`)
+  const historico = (respostas||[]).slice(-6)
+    .map(r => r.txt.slice(0,25) + ': ' + (r.resposta>=0.5?'SIM':r.resposta<=-0.5?'NAO':'?'))
     .join(' | ');
-  const cands = candidatos.slice(0,5).map(c=>c.nome).join(', ');
-  const ids = [...feitas].slice(-8).join(',');
-  const prompt = `Adivinha filme/serie. Candidatos: ${cands||'varios'}. Contexto: ${historico}. IDs usados: ${ids}. Pergunta SIM/NAO especifica. JSON: {"id":"snake_id","txt":"Pergunta?"}`;
 
-  console.log('[IA] Prompt length:', prompt.length);
+  const listaCands = candidatos.slice(0,6).map((c,i) =>
+    (i+1) + '.' + c.nome + '(' + (c.tipo==='movie'?'filme':'serie') + '): ' + (c.sinopse||'').slice(0,60)
+  ).join(' || ');
+
+  const ids = [...feitas].join(',');
+
+  // Chain of Thought — IA raciocina antes de responder
+  const prompt = candidatos.length > 0
+    ? `Voce e um genio que adivinha filmes e series.
+
+CANDIDATOS POSSIVEIS:
+${listaCands}
+
+O JOGADOR JA RESPONDEU:
+${historico}
+
+IDS JA USADOS (nao repita): ${ids}
+
+Pense passo a passo:
+1. Quais caracteristicas UNICAS cada candidato tem?
+2. Qual pergunta SIM/NAO eliminaria mais candidatos de uma vez?
+3. A pergunta e coerente com as respostas anteriores?
+
+Responda SOMENTE com JSON (sem explicacao):
+{"id":"snake_id","txt":"Pergunta especifica sobre os candidatos?"}`
+    : `Voce adivinha filmes/series. Jogador respondeu: ${historico}. IDs proibidos: ${ids}. Pense: qual caracteristica ainda nao foi perguntada e eliminaria mais titulos? JSON: {"id":"snake_id","txt":"Pergunta?"}`;
+
+  console.log('[IA] Candidatos:', candidatos.length, '| Prompt:', prompt.length, 'chars');
 
   const MODELOS = [
     'meta-llama/llama-3.3-70b-instruct:free',
@@ -388,7 +412,7 @@ app.post('/api/jogo/pergunta', async (req, res) => {
       const r = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app', 'X-Title': 'DarkiNator' },
-        body: JSON.stringify({ model: modelo, max_tokens: 80, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: modelo, max_tokens: 200, messages: [{ role: 'user', content: prompt }] })
       }, 15000);
       const d = await r.json();
       const txt = d.choices?.[0]?.message?.content || '';
