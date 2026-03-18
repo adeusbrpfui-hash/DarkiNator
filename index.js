@@ -999,6 +999,90 @@ app.get('/api/info', (req, res) => {
   res.json({ totalTitulos: t.titulos.length, totalPerguntas: PERGUNTAS_BASE.length+(p.perguntas||[]).length, perguntasDinamicas: (p.perguntas||[]).length, versao: '5.0' });
 });
 
+
+// ============================================================
+// EXPANSÃO AUTOMÁTICA DE PERGUNTAS — gera até 1000 via IA
+// ============================================================
+let expansaoPergRodando = false;
+async function expandirPerguntas() {
+  if (!OR_KEY || expansaoPergRodando) return;
+  const pergs = lerPergs();
+  const totalAtual = (pergs.perguntas || []).length;
+  if (totalAtual >= 1000) { console.log('💬 Banco de perguntas completo:', totalAtual); return; }
+  
+  expansaoPergRodando = true;
+  console.log('💬 Expandindo perguntas... Total atual:', totalAtual);
+
+  const categorias = [
+    'personagens icônicos (objetos, roupas, poderes únicos)',
+    'local onde a história se passa (cidade, país, planeta)',
+    'época histórica (anos 80, medieval, futuro, etc)',
+    'características visuais (cores, cenários, estética)',
+    'trama e plot (reviravolta, morte de personagem, final)',
+    'relações entre personagens (família, amizade, romance)',
+    'vilões e antagonistas (poderes, motivações, aparência)',
+    'origem e produção (país, idioma, estúdio)',
+    'prêmios e reconhecimento (Oscar, Emmy, etc)',
+    'público alvo (infantil, teen, adulto, familiar)',
+  ];
+
+  const idsExistentes = new Set([
+    ...PERGUNTAS_BASE.map(p => p.id),
+    ...(pergs.perguntas || []).map(p => p.id)
+  ]);
+
+  let geradas = 0;
+  const meta = Math.min(1000 - totalAtual, 100); // máx 100 por rodada
+
+  for (const categoria of categorias) {
+    if (geradas >= meta) break;
+    try {
+      const prompt = 'Crie 10 perguntas SIM/NÃO estratégicas para um jogo de adivinhação de filmes e séries. Categoria: ' + categoria + '. As perguntas devem ser úteis para diferenciar títulos. IDs existentes para NÃO repetir: ' + [...idsExistentes].slice(-20).join(',') + '. Responda SOMENTE com JSON array: [{"id":"snake_id","txt":"Pergunta?"},...]';
+
+      const r = await fetchComTimeout('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${OR_KEY}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://darkinatror.up.railway.app' },
+        body: JSON.stringify({ model: 'meta-llama/llama-3.3-70b-instruct:free', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+      }, 15000);
+
+      if (!r.ok) { await new Promise(r => setTimeout(r, 2000)); continue; }
+      const d = await r.json();
+      const txt = d.choices?.[0]?.message?.content || '';
+      const match = txt.match(/\[[\s\S]*\]/);
+      if (!match) continue;
+
+      const novas = JSON.parse(match[0]);
+      const pergsAtual = lerPergs();
+      let addCount = 0;
+
+      for (const p of novas) {
+        if (!p.id || !p.txt) continue;
+        const idLimpo = p.id.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/__+/g,'_').slice(0,40);
+        if (!idLimpo || idsExistentes.has(idLimpo)) continue;
+        pergsAtual.perguntas.push({ id: idLimpo, txt: p.txt, categoria, geradoEm: new Date().toISOString() });
+        idsExistentes.add(idLimpo);
+        addCount++;
+        geradas++;
+      }
+
+      if (addCount > 0) {
+        salvarPergs(pergsAtual);
+        console.log('💬 +' + addCount + ' perguntas (' + categoria + '). Total:', lerPergs().perguntas.length);
+      }
+
+      await new Promise(r => setTimeout(r, 1500)); // respeita rate limit
+    } catch(e) { console.log('Erro expandir perguntas:', e.message); }
+  }
+
+  expansaoPergRodando = false;
+  const totalFinal = lerPergs().perguntas.length;
+  console.log('💬 Expansão perguntas ok. Total:', totalFinal);
+  if (totalFinal < 1000) {
+    // Agenda próxima rodada em 1 hora
+    setTimeout(() => expandirPerguntas(), 60 * 60 * 1000);
+  }
+}
+
 // ============================================================
 // START
 // ============================================================
@@ -1007,5 +1091,6 @@ app.listen(PORT, async () => {
   console.log(`🔮 DarkiNator v5 porta ${PORT}`);
   await initTitulos();
   setTimeout(() => expandirBanco(), 20000);
+  setTimeout(() => expandirPerguntas(), 60000); // inicia após 1 min
   setInterval(() => expandirBanco(), 6*60*60*1000);
 });
