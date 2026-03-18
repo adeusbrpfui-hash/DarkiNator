@@ -1305,8 +1305,22 @@ app.get('/api/tmdb/buscar', async (req, res) => {
 app.post('/api/aki/iniciar', async (req, res) => {
   const { sessaoId } = req.body;
   try {
-    // region 'pt' para português, childMode false
-    const aki = new Aki({ region: 'pt', childMode: false });
+    // Tenta região pt primeiro, depois en como fallback
+    let aki;
+    let iniciou = false;
+    for (const region of ['pt', 'en', 'pt2']) {
+      try {
+        aki = new Aki({ region, childMode: false });
+        await aki.start();
+        iniciou = true;
+        console.log('[AKI] Iniciou com region:', region);
+        break;
+      } catch(e) {
+        console.log('[AKI] Falhou region', region, ':', e.message);
+        continue;
+      }
+    }
+    if (!iniciou) throw new Error('Todas as regiões falharam');
     await aki.start();
     sessoes.set(sessaoId, aki);
     console.log('[AKI] Sessão iniciada | Pergunta:', aki.question);
