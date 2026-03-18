@@ -1,7 +1,6 @@
 const express = require('express');
 const { Aki } = require('aki-api');
 
-const { Akinator, AkinatorAnswer } = require('@aqul/akinator-api');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -1185,7 +1184,7 @@ app.post('/api/aki/start', async (req, res) => {
     // Encerra sessão anterior se existir
     if (sessoes.has(sessionId)) sessoes.delete(sessionId);
 
-    const aki = new Akinator({ region: 'pt', childMode: false });
+    const aki = new Aki({ region: 'pt', childMode: false });
     await aki.start();
 
     sessoes.set(sessionId, aki);
@@ -1201,7 +1200,7 @@ app.post('/api/aki/start', async (req, res) => {
     console.log('[AKI] Erro ao iniciar:', e.message);
     // Tenta região en como fallback
     try {
-      const aki = new Akinator({ region: 'en', childMode: false });
+      const aki = new Aki({ region: 'en', childMode: false });
       await aki.start();
       sessoes.set(sessionId, aki);
       res.json({ sucesso: true, pergunta: aki.question, progresso: aki.progress, step: 0, idioma: 'en' });
