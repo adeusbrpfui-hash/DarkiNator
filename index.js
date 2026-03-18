@@ -421,11 +421,32 @@ JSON apenas: {"id":"id_unico_snake","txt":"Pergunta específica?"}`
         const perg = JSON.parse(jsonMatch[0]);
         if (perg.id && perg.txt) {
           const idLimpo = perg.id.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/__+/g,'_').slice(0,40);
-          if (idLimpo && !feitas.has(idLimpo)) {
-            perg.id = idLimpo;
-            console.log('[IA] Pergunta OK:', JSON.stringify(perg));
-            return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
+          
+          // Verifica se ID já foi usado
+          if (!idLimpo || feitas.has(idLimpo)) {
+            console.log('[IA] ID repetido:', idLimpo);
+            continue;
           }
+          
+          // Verifica similaridade de texto com perguntas já feitas
+          const txtNovo = perg.txt.toLowerCase().trim();
+          const textosFeitos = (respostas||[]).map(r => r.txt.toLowerCase().trim());
+          const eSimilar = textosFeitos.some(t => {
+            // Verifica se 60% das palavras são iguais
+            const palavrasNovas = txtNovo.split(' ').filter(p => p.length > 3);
+            const palavrasFeitas = t.split(' ').filter(p => p.length > 3);
+            const iguais = palavrasNovas.filter(p => palavrasFeitas.includes(p)).length;
+            return palavrasNovas.length > 0 && (iguais / palavrasNovas.length) >= 0.6;
+          });
+          
+          if (eSimilar) {
+            console.log('[IA] Pergunta similar a uma já feita, pulando:', txtNovo.slice(0,50));
+            continue;
+          }
+          
+          perg.id = idLimpo;
+          console.log('[IA] Pergunta OK:', JSON.stringify(perg));
+          return res.json({ pergunta: perg, fase: 4, bloco: 'IA', candidatos: candidatos.length, num: num+1, total: 30 });
         }
       }
     } catch(e) { console.log('[IA] Erro:', modelo, e.message); }
