@@ -1303,15 +1303,16 @@ app.get('/api/tmdb/buscar', async (req, res) => {
 app.post('/api/aki/iniciar', async (req, res) => {
   const { sessaoId } = req.body;
   try {
+    // region 'pt' para português, childMode false
     const aki = new Aki({ region: 'pt', childMode: false });
     await aki.start();
     sessoes.set(sessaoId, aki);
-    console.log('[AKI] Sessão iniciada:', sessaoId, '| Pergunta:', aki.question);
+    console.log('[AKI] Sessão iniciada | Pergunta:', aki.question);
     res.json({
       sucesso: true,
       pergunta: aki.question,
-      progresso: aki.progress,
-      passo: aki.step
+      progresso: parseFloat(aki.progress) || 0,
+      passo: aki.currentStep || 0
     });
   } catch(e) {
     console.log('[AKI] Erro iniciar:', e.message);
@@ -1328,30 +1329,38 @@ app.post('/api/aki/responder', async (req, res) => {
     if (!aki) return res.json({ erro: 'Sessão não encontrada' });
 
     await aki.step(resposta);
+    console.log('[AKI] Passo:', aki.currentStep, '| Progresso:', aki.progress);
 
-    // Verifica se tem sugestão
-    if (aki.progress >= 80 || aki.step >= 20) {
-      await aki.win();
-      const palpite = aki.answers?.[0];
-      if (palpite) {
-        sessoes.delete(sessaoId);
-        return res.json({
-          revelar: true,
-          nome: palpite.name,
-          descricao: palpite.description,
-          capa: palpite.absolute_picture_path || '',
-          ranking: palpite.ranking
-        });
+    // Verifica se Akinator quer dar um palpite
+    if (parseFloat(aki.progress) >= 70 || aki.currentStep >= 20) {
+      try {
+        await aki.win();
+        const palpites = aki.answers;
+        if (palpites && palpites.length > 0) {
+          const p = palpites[0];
+          sessoes.delete(sessaoId);
+          console.log('[AKI] Palpite:', p.name);
+          return res.json({
+            revelar: true,
+            nome: p.name || '',
+            descricao: p.description || '',
+            capa: p.absolute_picture_path || p.picture_path || '',
+            ranking: p.ranking || 0
+          });
+        }
+      } catch(e) {
+        console.log('[AKI] Win falhou:', e.message);
       }
     }
 
     res.json({
       pergunta: aki.question,
-      progresso: aki.progress,
-      passo: aki.step
+      progresso: parseFloat(aki.progress) || 0,
+      passo: aki.currentStep || 0
     });
   } catch(e) {
     console.log('[AKI] Erro responder:', e.message);
+    sessoes.delete(sessaoId);
     res.json({ erro: e.message });
   }
 });
